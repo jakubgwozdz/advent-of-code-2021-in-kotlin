@@ -18,25 +18,21 @@ fun main() {
             ?: error("`$line` does not match `${re.pattern}`")
     }
 
-    class PointIterator(start: Point, end: Point) : Iterator<Point> {
-        val dx = (end.x - start.x).sign
-        val dy = (end.y - start.y).sign
-        val xs = minOf(start.x, end.x)..maxOf(start.x, end.x)
-        val ys = minOf(start.y, end.y)..maxOf(start.y, end.y)
-
-        var x = start.x
-        var y = start.y
-        override fun hasNext() = x in xs && y in ys
-        override fun next() = Point(x, y).also { x += dx;y += dy }
-
-    }
-
-    operator fun Point.rangeTo(other: Point) = Iterable { PointIterator(this, other) }
-
     fun calculate(lines: List<Line>): Int {
         val covered = mutableMapOf<Point, Int>()
-        lines.forEach { l ->
-            (l.p1..l.p2).forEach { point -> covered.compute(point) { _, n -> (n ?: 0) + 1 } }
+        lines.forEach { (start, end) ->
+            val dx = (end.x - start.x).sign
+            val dy = (end.y - start.y).sign
+            val xs = minOf(start.x, end.x)..maxOf(start.x, end.x)
+            val ys = minOf(start.y, end.y)..maxOf(start.y, end.y)
+
+            var (x, y) = start
+
+            while (x in xs && y in ys) {
+                covered.compute(Point(x, y)) { _, n -> (n ?: 0) + 1 }
+                x += dx
+                y += dy
+            }
         }
         return covered.values.filter { it > 1 }.size
     }
