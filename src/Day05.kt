@@ -27,7 +27,6 @@ fun main() {
             val ys = minOf(start.y, end.y)..maxOf(start.y, end.y)
 
             var (x, y) = start
-
             while (x in xs && y in ys) {
                 covered.compute(Point(x, y)) { _, n -> (n ?: 0) + 1 }
                 x += dx
@@ -38,7 +37,7 @@ fun main() {
     }
 
     fun part1(input: List<String>): Int = input.map(parse)
-        .filter { it.p1.x == it.p2.x || it.p1.y == it.p2.y }
+        .filter { (p1, p2) -> p1.x == p2.x || p1.y == p2.y }
         .let { calculate(it) }
 
     fun part2(input: List<String>): Int = input.map(parse)
@@ -46,13 +45,10 @@ fun main() {
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day05_test")
-    expect(5)
-    { part1(testInput) }
-    expect(12)
-    { part2(testInput) }
-
     val input = readInput("Day05")
+    expect(5) { part1(testInput) }
     println(part1(input))
+    expect(12) { part2(testInput) }
     println(part2(input))
 }
 
