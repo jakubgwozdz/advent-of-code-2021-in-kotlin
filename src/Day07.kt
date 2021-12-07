@@ -6,32 +6,24 @@ fun main() {
 
     fun part1(input: List<String>): Int {
         val positions = parse(input).sorted()
-        val d = (positions.minOrNull()!!..positions.maxOrNull()!!).associateWith { p->
-            positions.sumOf { (it-p).absoluteValue }
-        }
-//        val avg = positions.average().toInt()
-//        println(avg)
-//        println(d[avg-1])
-//        println(d[avg])
-//        println(d[avg+1])
-        val result = d.minOfOrNull { (k,v)->v }!!
-
-        return result
+        val median = positions[positions.size / 2]
+        return positions.sumOf { (it - median).absoluteValue }
     }
 
     fun part2(input: List<String>): Int {
-        val positions = parse(input).sorted()
-        val d = (positions.minOrNull()!!..positions.maxOrNull()!!).associateWith { p->
-            positions.sumOf { (it-p).absoluteValue.let {i->i*(i+1)/2} }
+        val positions = parse(input)
+        val costFn = { p: Int ->
+            positions.sumOf {
+                (it - p).absoluteValue.let { i -> i * (i + 1) / 2 }
+            }
         }
-//        val avg = positions.average().toInt()
-//        println(avg)
-//        println(d[avg-1])
-//        println(d[avg])
-//        println(d[avg+1])
-        val result = d.minOfOrNull { (k,v)->v }!!
+        val avg = positions.average().toInt()
+        val cost = costFn(avg)
 
-        return result
+        // see adjacent values, if avg is not integer
+        return if (costFn(avg - 1) < cost) costFn(avg - 1)
+        else if (costFn(avg + 1) < cost) costFn(avg + 1)
+        else cost
     }
 
     // test if implementation meets criteria from the description, like:
