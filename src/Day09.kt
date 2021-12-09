@@ -50,10 +50,10 @@ fun main() {
             .flatMap { it.asSequence() }
             .filter { it >= 0 }
             .groupBy { it }
-            .map { (k, v) -> k to v.size }
-            .sortedByDescending { (k, v) -> v }
+            .map { (_, v) ->  v.size }
+            .sortedDescending()
             .take(3)
-            .fold(1) { a, (k, v) -> a * v }
+            .fold(1) { a, s -> a * s }
 
     }
 
