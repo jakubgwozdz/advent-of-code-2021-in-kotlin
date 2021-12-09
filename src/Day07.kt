@@ -1,3 +1,4 @@
+import kotlin.math.abs
 import kotlin.math.absoluteValue
 
 fun main() {
@@ -29,9 +30,19 @@ fun main() {
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day07_test")
     val input = readInput("Day07")
-    expect(37) { part1(testInput) }
-    println(part1(input))
-    expect(168) { part2(testInput) }
-    println(part2(input))
+
+    val ints = parse(input)
+    (0..ints.maxOf { it }).forEach { i ->
+        val normal = ints.sumOf { abs(it - i) }
+        val incr = ints.sumOf { abs(it - i) * (abs(it - i) + 1) / 2 }
+        val sqr = ints.sumOf { abs(it - i) * abs(it - i) }
+        println("$i,$normal,$incr,$sqr")
+    }
+
+//
+//    expect(37) { part1(testInput) }
+//    println(part1(input))
+//    expect(168) { part2(testInput) }
+//    println(part2(input))
 }
 
