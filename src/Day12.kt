@@ -10,16 +10,36 @@ fun main() {
 
 
     val paths = mutableSetOf<List<String>>()
+    var log = false
 
-    fun calculateAll(edges: Map<String, List<String>>, soFar: List<String>) {
-        val current = soFar.last()
-        if (current == "end") {
-            paths += soFar + current
+    fun calculateAll(edges: Map<String, List<String>>, path: List<String>, maxVisits: Int) {
+//        println(path.joinToString("-") + " " + maxVisits)
+//        edges.forEach { println(it) }
+//        println()
+
+        val current = path.last()
+
+        var newMaxVisits = maxVisits
+        val newEdges = when {
+            current == "start" -> edges.mapValues { (_, l) -> l - current }
+            current.first()
+                .isLowerCase() && path.count { it == current } >= maxVisits -> edges.mapValues { (_, l) -> l - current }
+                .also { newMaxVisits = 1 }
+            else -> edges
         }
-        edges[current]!!.forEach { next ->
-            calculateAll(if (current.first().isUpperCase()) edges else
-                edges.mapValues { (_, l) -> l - current }, soFar + next
-            )
+
+        if (current == "end") {
+            // workaround, todo: fix
+            val v = path.filter { it.first().isLowerCase() }.groupBy { it }
+                .mapValues { (_, v) -> v.size }
+                .count { (k, v) -> v == 2 }
+            if (v < 2) {
+                if (log) println(path.joinToString("-"))
+                paths += path
+            }
+        } else edges[current]!!.forEach { next ->
+            val newPath = path + next
+            calculateAll(newEdges, newPath, newMaxVisits)
         }
     }
 
@@ -31,16 +51,26 @@ fun main() {
                     compute(it.second) { _, l -> (l ?: emptyList()) + it.first }
                 }
         }
-//        edges.forEach { println(it) }
         paths.clear()
 
-        calculateAll(edges, listOf("start"))
+        calculateAll(edges, listOf("start"), 1)
 
         return paths.size
     }
 
     fun part2(input: List<String>): Int {
-        TODO()
+        val edges = buildMap<String, List<String>> {
+            input.map(parse)
+                .forEach {
+                    compute(it.first) { _, l -> (l ?: emptyList()) + it.second }
+                    compute(it.second) { _, l -> (l ?: emptyList()) + it.first }
+                }
+                        }.mapValues { (k,v)->v.sorted() }
+        paths.clear()
+        log = true
+        calculateAll(edges, listOf("start"), 2)
+
+        return paths.size
     }
 
     // test if implementation meets criteria from the description, like:
