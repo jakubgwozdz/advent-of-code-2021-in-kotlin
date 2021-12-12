@@ -1,6 +1,6 @@
 fun main() {
 
-    fun parse(input: List<String>) = buildMap<String, Iterable<String>> {
+    fun parse(input: List<String>) = buildMap<String, Collection<String>> {
         input.map { it.split("-") }
             .forEach { (v1, v2) ->
                 compute(v1) { _, l -> (l ?: hashSetOf()) + v2 }
@@ -8,26 +8,23 @@ fun main() {
             }
     }
 
-    fun calculateAll(
-        edges: Map<String, Iterable<String>>,
+    fun solve(
+        edges: Map<String, Collection<String>>, // directed graph
+        canVisitTwice: Boolean = false,
         current: String = "start",
-        visited: Collection<String> = hashSetOf(),
-        canVisitTwice: Boolean = false
-    ): Int {
-        val newVisited = visited + current
-        return if (current == "end") 1 else edges[current]!!.sumOf { next ->
-            when {
-                next.first().isUpperCase() -> calculateAll(edges, next, newVisited, canVisitTwice)
-                next !in visited -> calculateAll(edges, next, newVisited, canVisitTwice)
-                canVisitTwice && next != "start" -> calculateAll(edges, next, newVisited, false)
-                else -> 0
-            }
+        visited: Collection<String> = hashSetOf(current)
+    ): Int = edges[current]!!.sumOf { next -> when {
+            next == "end" -> 1
+            next.first().isUpperCase() -> solve(edges, canVisitTwice, next, visited + next)
+            next !in visited -> solve(edges, canVisitTwice, next, visited + next)
+            canVisitTwice && next != "start" -> solve(edges, false, next, visited + next)
+            else -> 0
         }
     }
 
-    fun part1(input: List<String>) = calculateAll(parse(input))
+    fun part1(input: List<String>) = solve(parse(input))
 
-    fun part2(input: List<String>) = calculateAll(parse(input), canVisitTwice = true)
+    fun part2(input: List<String>) = solve(parse(input), canVisitTwice = true)
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day12_test")
@@ -37,4 +34,3 @@ fun main() {
     expect(36) { part2(testInput) }
     println(part2(input))
 }
-
