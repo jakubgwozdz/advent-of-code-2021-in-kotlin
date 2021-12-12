@@ -1,23 +1,15 @@
 fun main() {
 
-    val re = Regex("""^(\w+)-(\w+)$""")
-    val parseLine = { line: String ->
-        re.matchEntire(line)
-            ?.destructured
-            ?.let { (v1, v2) -> v1 to v2 }
-            ?: error("`$line` does not match `${re.pattern}`")
-    }
-
-    fun parse(input: List<String>) = buildMap<String, List<String>> {
-        input.map(parseLine)
-            .forEach {
-                compute(it.first) { _, l -> (l ?: emptyList()) + it.second }
-                compute(it.second) { _, l -> (l ?: emptyList()) + it.first }
+    fun parse(input: List<String>) = buildMap<String, Iterable<String>> {
+        input.map { it.split("-") }
+            .forEach { (v1, v2) ->
+                compute(v1) { _, l -> (l ?: hashSetOf()) + v2 }
+                compute(v2) { _, l -> (l ?: hashSetOf()) + v1 }
             }
     }
 
     fun calculateAll(
-        edges: Map<String, List<String>>,
+        edges: Map<String, Iterable<String>>,
         current: String = "start",
         visited: Collection<String> = hashSetOf(),
         canVisitTwice: Boolean = false
