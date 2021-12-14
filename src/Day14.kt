@@ -2,40 +2,40 @@ fun main() {
 
     val re = Regex("""^(\w\w) -> (\w)$""")
     val parse = { line: String ->
-        re.matchEntire(line)
-            ?.destructured
-            ?.let { (v1, v2) -> v1 to v2.single() }
+        re.matchEntire(line)?.destructured?.let { (v1, v2) -> v1 to v2.single() }
             ?: error("`$line` does not match `${re.pattern}`")
     }
 
-    fun step(
-        quantity: MutableMap<Char, Long>,
-        next: Map<String, Long>,
-        rules: Map<String, Char>,
-        chains: Map<String, List<String>>
-    ): Map<String, Long> = buildMap {
-        next.forEach { (k, c) ->
-            quantity.compute(rules[k]!!) { _, i -> (i ?: 0) + c }
-            chains[k]!!.forEach { chained -> compute(chained) { _, i -> (i ?: 0) + c } }
-        }
+    fun <T> MutableMap<T, Long>.increment(key: T, value: Long = 1L) {
+        compute(key) { _, i -> (i ?: 0) + value }
     }
 
+    fun step(
+        quantity: MutableMap<Char, Long>, state: Map<String, Long>, rules: Map<String, Char>
+    ): Map<String, Long> =
+        state.entries.fold(mutableMapOf()) { acc, entry ->
+            val (k, n) = entry
+            val c = rules[k]!!
+            quantity.increment(c, n)
+            listOf("${k[0]}$c", "$c${k[1]}")
+                .filter { it in rules }
+                .forEach { acc.increment(it, n) }
+            acc
+        }
+
     fun grow(input: List<String>, times: Int): Long {
+        val quantity = mutableMapOf<Char, Long>()
         val rules = input.drop(2).associate(parse)
-        val chains = rules.mapValues { (k, v) ->
-            listOf("${k[0]}$v", "$v${k[1]}").filter { it in rules }
-        }
+        input.first().forEach(quantity::increment)
 
-        var next = buildMap<String, Long> {
-            input.first().windowed(2).filter { it in rules }
-                .forEach { s -> compute(s) { _, i -> (i ?: 0) + 1 } }
-        }
+        // initial state
+        var next: Map<String, Long> = input.first()
+            .windowed(2)
+            .filter { it in rules }
+            .fold(mutableMapOf()) { acc, s -> acc.apply { increment(s) } }
 
-        return buildMap<Char, Long> {
-            input.first().forEach { c -> compute(c) { _, i -> (i ?: 0) + 1 } }
-            repeat(times) { next = step(this, next, rules, chains) }
-        }.values.sorted()
-            .let { it.last() - it.first() }
+        repeat(times) { next = step(quantity, next, rules) }
+        return quantity.values.sorted().let { it.last() - it.first() }
     }
 
     fun part1(input: List<String>) = grow(input, 10)
