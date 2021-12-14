@@ -1,41 +1,50 @@
+typealias Counters<T> = Map<T, Long>
+typealias MutableCounters<T> = MutableMap<T, Long>
+
+fun <T> MutableCounters<T>.increment(key: T, value: Long = 1L) {
+    compute(key) { _, i -> (i ?: 0) + value }
+}
+
+inline fun <reified T> counters(orig: Counters<T> = emptyMap()): MutableCounters<T> = orig.toMutableMap()
+
 fun main() {
 
-    val re = Regex("""^(\w\w) -> (\w)$""")
+    val re = Regex("""^(\w)(\w) -> (\w)$""")
     val parse = { line: String ->
-        re.matchEntire(line)?.destructured?.let { (v1, v2) -> v1 to v2.single() }
+        re.matchEntire(line)?.destructured?.let { (v1, v2, v3) ->
+            v1 + v2 to (v3.single() to listOf(v1 + v3, v3 + v2))
+        }
             ?: error("`$line` does not match `${re.pattern}`")
     }
 
-    fun <T> MutableMap<T, Long>.increment(key: T, value: Long = 1L) {
-        compute(key) { _, i -> (i ?: 0) + value }
+    data class State(val counts: Counters<Char>, val newPairs: Counters<String>)
+
+    fun initial(polymer: String): State {
+        val cs = counters<Char>()
+        val ps = counters<String>()
+        polymer.forEach { cs.increment(it) }
+        polymer.windowed(2).forEach { ps.increment(it) }
+        return State(cs, ps)
     }
 
-    fun step(
-        quantity: MutableMap<Char, Long>, state: Map<String, Long>, rules: Map<String, Char>
-    ): Map<String, Long> =
-        state.entries.fold(mutableMapOf()) { acc, entry ->
-            val (k, n) = entry
-            val c = rules[k]!!
-            quantity.increment(c, n)
-            listOf("${k[0]}$c", "$c${k[1]}")
-                .filter { it in rules }
-                .forEach { acc.increment(it, n) }
-            acc
+    fun State.step(rules: Map<String, Pair<Char, List<String>>>): State {
+        val cs = counters(counts)
+        val ps = counters<String>()
+        newPairs.forEach { (k, n) ->
+            val (c, l) = rules[k]!!
+            cs.increment(c, n)
+            l.forEach { ps.increment(it, n) }
         }
+        return State(cs, ps)
+    }
 
     fun grow(input: List<String>, times: Int): Long {
-        val quantity = mutableMapOf<Char, Long>()
         val rules = input.drop(2).associate(parse)
-        input.first().forEach(quantity::increment)
 
-        // initial state
-        var next: Map<String, Long> = input.first()
-            .windowed(2)
-            .filter { it in rules }
-            .fold(mutableMapOf()) { acc, s -> acc.apply { increment(s) } }
+        var state = initial(input.first())
+        repeat(times) { state = state.step(rules) }
 
-        repeat(times) { next = step(quantity, next, rules) }
-        return quantity.values.sorted().let { it.last() - it.first() }
+        return state.counts.values.sorted().let { it.last() - it.first() }
     }
 
     fun part1(input: List<String>) = grow(input, 10)
