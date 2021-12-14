@@ -41,8 +41,8 @@ fun main() {
     fun grow(input: List<String>, times: Int): Long {
         val rules = input.drop(2).associate(parse)
 
-        var state = initial(input.first())
-        repeat(times) { state = state.step(rules) }
+        var state = initial(input.first()).also { println(it) }
+        repeat(times) { state = state.step(rules).also { println(it) } }
 
         return state.counts.values.sorted().let { it.last() - it.first() }
     }
@@ -54,9 +54,9 @@ fun main() {
 // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day14_test")
     val input = readInput("Day14")
-    expect(1588) { part1(testInput) }
+    expect(1588) { part1(testInput).also {println(it)} }
     println(part1(input))
-    expect(2188189693529) { part2(testInput) }
+    expect(2188189693529) { part2(testInput).also {println(it)} }
     println(part2(input))
 }
 
