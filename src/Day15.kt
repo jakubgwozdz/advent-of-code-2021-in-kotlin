@@ -16,13 +16,23 @@ fun main() {
     fun List<List<Int>>.calculate(): Int {
         val start = Pos(0, 0)
         val end = Pos(last().lastIndex, lastIndex)
-        fun Collection<Pos>.distance(): Int = drop(1).sumOf { (x, y) -> this@calculate[y][x] }
 
-        val pathfinder = BasicPathfinder<Pos, Int>(
-            distanceOp = { it.distance() },
-            waysOutOp = { l -> exits(l.last()) }
+        data class State(val pos: Pos, val dist: Int)
+        operator fun Collection<State>.contains(pos:Pos) = any{ it.pos == pos }
+
+        val cache = Cache<Pos,Int>()
+        fun Collection<State>.distance(): Int = last().dist
+
+        val m = mapOf<String,Int>()
+        val j = m + ("s" to 1)
+
+        val pathfinder = BFSPathfinder<Pos, Map<Pos, Int>, Int>(
+            adderOp = { l, t -> l + Pair(t, l.values.last() + this@calculate[t.y][t.x]) },
+            distanceOp = { it.values.last() },
+            waysOutOp = { l -> exits(l.keys.last()).filter { pos -> pos !in l } },
+            meaningfulOp = { l, d -> cache.isBetterThanPrevious(l.keys.last(), d) }
         )
-        return pathfinder.findShortest(setOf(start)) { end in it }!!.distance()
+        return pathfinder.findShortest(mapOf(start to 0)) { end in it }!!.values.last()
     }
 
     fun part1(input: List<String>) = input.map { l -> l.map { it.digitToInt() } }.calculate()
