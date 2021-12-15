@@ -17,22 +17,15 @@ fun main() {
         val start = Pos(0, 0)
         val end = Pos(last().lastIndex, lastIndex)
 
-        data class State(val pos: Pos, val dist: Int)
-        operator fun Collection<State>.contains(pos:Pos) = any{ it.pos == pos }
+        val cache = Cache<Pos, Int>()
 
-        val cache = Cache<Pos,Int>()
-        fun Collection<State>.distance(): Int = last().dist
-
-        val m = mapOf<String,Int>()
-        val j = m + ("s" to 1)
-
-        val pathfinder = BFSPathfinder<Pos, Map<Pos, Int>, Int>(
-            adderOp = { l, t -> l + Pair(t, l.values.last() + this@calculate[t.y][t.x]) },
-            distanceOp = { it.values.last() },
-            waysOutOp = { l -> exits(l.keys.last()).filter { pos -> pos !in l } },
-            meaningfulOp = { l, d -> cache.isBetterThanPrevious(l.keys.last(), d) }
-        )
-        return pathfinder.findShortest(mapOf(start to 0)) { end in it }!!.values.last()
+        return BFSPathfinder<Pos, Pair<Pos, Int>, Int>(
+            adderOp = { (_, dist), t -> t to dist + this@calculate[t.y][t.x] },
+            distanceOp = { (_, dist) -> dist },
+            waysOutOp = { (pos, _) -> exits(pos) },
+            meaningfulOp = { (pos, _), d -> cache.isBetterThanPrevious(pos, d) }
+        ).findShortest(start to 0) { (pos, _) -> pos == end }!!
+            .second
     }
 
     fun part1(input: List<String>) = input.map { l -> l.map { it.digitToInt() } }.calculate()
@@ -41,7 +34,8 @@ fun main() {
         (0..4).map { offsetY ->
             input.map { l ->
                 (0..4).map { offsetX ->
-                    l.map { it.digitToInt() }.map { (((it - 1) + offsetX + offsetY) % 9) + 1 }
+                    l.map { it.digitToInt() }
+                        .map { (((it - 1) + offsetX + offsetY) % 9) + 1 }
                 }
                     .reduce { a, b -> a + b }
             }
