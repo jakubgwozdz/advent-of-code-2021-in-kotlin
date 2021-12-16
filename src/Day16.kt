@@ -1,5 +1,5 @@
 internal interface PacketProvider {
-    fun version(): Int
+    fun version(): Long
     fun sum(): Long
     fun product(): Long
     fun min(): Long
@@ -12,29 +12,29 @@ internal interface PacketProvider {
 fun main() {
 
     abstract class Packet {
-        abstract fun versionSum(): Int
+        abstract fun versionSum(): Long
         abstract fun calculate(): Long
     }
 
-    data class Literal(val version: Int, val value: Long) : Packet() {
+    data class Literal(val version: Long, val value: Long) : Packet() {
         override fun versionSum() = version
         override fun calculate() = value
     }
 
 
-    data class SubPackets(val packets: Iterable<Packet>) : PacketProvider {
-        override fun version() = packets.sumOf { it.versionSum() }
+    data class SubPackets(val packets: Iterable<Long>) : PacketProvider {
+        override fun version() = packets.sumOf { it }
 
-        override fun sum() = packets.map { it.calculate() }.reduce { acc, x -> acc + x }
-        override fun product() = packets.map { it.calculate() }.reduce { acc, x -> acc * x }
-        override fun min() = packets.map { it.calculate() }.reduce { a, b -> minOf(a, b) }
-        override fun max() = packets.map { it.calculate() }.reduce { a, b -> maxOf(a, b) }
-        override fun gt() = packets.map { it.calculate() }.reduce { a, b -> if (a > b) 1 else 0 }
-        override fun lt() = packets.map { it.calculate() }.reduce { a, b -> if (a < b) 1 else 0 }
-        override fun eq() = packets.map { it.calculate() }.reduce { a, b -> if (a == b) 1 else 0 }
+        override fun sum() = packets.reduce { acc, x -> acc + x }
+        override fun product() = packets.reduce { acc, x -> acc * x }
+        override fun min() = packets.reduce { a, b -> minOf(a, b) }
+        override fun max() = packets.reduce { a, b -> maxOf(a, b) }
+        override fun gt() = packets.reduce { a, b -> if (a > b) 1 else 0 }
+        override fun lt() = packets.reduce { a, b -> if (a < b) 1 else 0 }
+        override fun eq() = packets.reduce { a, b -> if (a == b) 1 else 0 }
     }
 
-    data class Operator(val version: Int, val type: Int, val packets: PacketProvider) : Packet() {
+    data class Operator(val version: Long, val type: Int, val packets: PacketProvider) : Packet() {
         override fun versionSum() = version + packets.version()
 
         override fun calculate() = when (type) {
@@ -50,11 +50,12 @@ fun main() {
     }
 
     data class ParseProcess(val src: String, var pos: Int = 0) {
-        fun takeBits(size: Int): String = src.substring(pos, pos + size).also { pos += size }.also { print(">$size ") }
+        fun takeBits(size: Int): String = src.substring(pos, pos + size).also { pos += size }
 
-        fun <T> decode(op: (Packet) -> T): T {
-            val version = takeBits(3).toInt(2)
-            return when (val type = takeBits(3).toInt(2).also{print("_$it ")}) {
+        fun decode(op: (Packet) -> Long): Long {
+            val version = takeBits(3).toLong(2)
+            return when (val type = takeBits(3).toInt(2)
+            ) {
                 4 -> {
                     val builder = StringBuilder()
                     do {
@@ -64,25 +65,25 @@ fun main() {
                     Literal(version, builder.toString().toLong(2)).let(op)
                 }
                 else -> {
-                    Operator(version, type, subPackets()).let(op).also { print("< ") }
+                    Operator(version, type, subPackets(op)).let(op)
                 }
             }
         }
 
-        private fun subPackets() = sequence {
+        private fun subPackets(op: (Packet) -> Long) = sequence {
             when (takeBits(1)) {
                 "0" -> {
                     val end = takeBits(15).toInt(2) + pos
                     while (pos < end) {
-                        yield(decode { it })
+                        yield(decode(op))
                     }
                 }
                 "1" -> {
-                    repeat(takeBits(11).toInt(2)) { yield(decode { it }) }
+                    repeat(takeBits(11).toInt(2)) { yield(decode(op)) }
                 }
                 else -> TODO()
             }
-        }.toList().let { SubPackets(it) }
+        }.asIterable().let { SubPackets(it) }
     }
 
     fun createProcess(hex: String): ParseProcess {
