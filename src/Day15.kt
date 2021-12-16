@@ -45,8 +45,9 @@ fun main() {
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day15_test")
     val input = readInput("Day15")
-    expect(40) { part1(testInput).also { println(it) } }
-    println(part1(input))
-    expect(315) { part2(testInput).also { println(it) } }
-    println(part2(input))
+    logWithTime("start")
+    expect(40) { part1(testInput).also { logWithTime("test part 1: $it") } }
+    logWithTime("real part 1: ${part1(input)}")
+    expect(315) { part2(testInput).also { logWithTime("test part 2: $it") } }
+    logWithTime("real part 2: ${part2(input)}")
 }

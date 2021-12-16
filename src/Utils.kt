@@ -1,6 +1,7 @@
 import java.io.File
 import java.math.BigInteger
 import java.security.MessageDigest
+import java.time.LocalTime
 
 /**
  * Reads lines from the given input txt file.
@@ -18,10 +19,14 @@ fun <T> expect(expected: T, block: () -> T) {
     check(expected == actual) { "expected $expected, but got $actual" }
 }
 
+fun <T> logWithTime(msg: T, op: T.() -> String = { "$this" }) {
+    println("${LocalTime.now().toString().take(12).padEnd(12)}: ${msg.op()}")
+}
+
 
 open class Queue<E : Any> {
 
-    protected var queue: ArrayList<E> = ArrayList(11)
+    protected var queue = mutableListOf<E>()
 
     val size get() = queue.size
 
@@ -39,7 +44,7 @@ open class Queue<E : Any> {
 }
 
 
-class PriorityQueue<E : Any>(val comparator: Comparator<E>) : Queue<E>() {
+class PriorityQueue<E : Any>(private val comparator: Comparator<E>) : Queue<E>() {
 
     override fun offer(e: E) {
         val index = queue.binarySearch(e, comparator).let {
@@ -113,9 +118,7 @@ open class BFSPathfinder<T : Any, R : Any, I : Comparable<I>>(
 
     private var currentBest: Pair<R, I>? = null
 
-    //    private val toVisit = Queue<Pair<R, I>>()
-    private val toVisit = PriorityQueue<Pair<R, I>>(priority)
-//    private val toVisit: MutableList<Triple<T, R, I>> = mutableListOf()
+    private val toVisit = PriorityQueue(priority)
 
 }
 

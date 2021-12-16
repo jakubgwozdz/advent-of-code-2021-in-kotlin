@@ -27,36 +27,36 @@ fun main() {
     data class ParseProcess(val src: String, var pos: Int = 0) {
         fun takeBits(size: Int): String = src.substring(pos, pos + size).also { pos += size }
 
-        fun decodeLiteral(version: Int): Literal {
+        fun <T>decodeLiteral(version: Int, op: (Packet) -> T): T {
             val builder = StringBuilder()
             do {
                 val next = takeBits(5)
                 builder.append(next.drop(1))
             } while (next[0] == '1')
-            return Literal(version, builder.toString().toLong(2))
+            return Literal(version, builder.toString().toLong(2)).let(op)
         }
 
-        fun decodeOperator(version: Int, type: Int): Operator {
+        fun <T>decodeOperator(version: Int, type: Int, op: (Packet) -> T): T {
             val packets: List<Packet> = when (takeBits(1)) {
                 "0" -> buildList {
                     val end = takeBits(15).toInt(2) + pos
                     while (pos < end) {
-                        add(decode())
+                        add(decode { it })
                     }
                 }
                 "1" -> buildList {
-                    repeat(takeBits(11).toInt(2)) { add(decode()) }
+                    repeat(takeBits(11).toInt(2)) { add(decode { it }) }
                 }
                 else -> TODO()
             }
-            return Operator(version, type, packets)
+            return Operator(version, type, packets).let(op)
         }
 
-        fun decode(): Packet {
+        fun <T>decode(op:(Packet)->T ): T {
             val version = takeBits(3).toInt(2)
             return when (val type = takeBits(3).toInt(2)) {
-                4 -> decodeLiteral(version)
-                else -> decodeOperator(version, type)
+                4 -> decodeLiteral(version, op)
+                else -> decodeOperator(version, type, op)
             }
         }
     }
@@ -68,23 +68,15 @@ fun main() {
         return ParseProcess(src)
     }
 
-    fun part1(input: String): Int {
-        val packet = createProcess(input).decode()
-        return packet.versionSum()
-    }
+    fun part1(input: String)= createProcess(input).decode{it.versionSum()}
 
-    fun part2(input: String): Long {
-        val packet = createProcess(input).decode()
-        return packet.calculate()
-    }
-
-    println(createProcess("D2FE28").decode())
+    fun part2(input: String) = createProcess(input).decode{it.calculate()}
 
 // test if implementation meets criteria from the description, like:
     val input = readInput("Day16").first()
-    expect(31) { part1("A0016C880162017C3686B18A3D4780").also { println(it) } }
-    println(part1(input))
-    expect(7) { part2("880086C3E88112").also { println(it) } }
-    expect(1) { part2("9C0141080250320F1802104A08").also { println(it) } }
-    println(part2(input))
+    expect(31) { part1("A0016C880162017C3686B18A3D4780").also { logWithTime(it) } }
+    logWithTime(part1(input))
+    expect(7) { part2("880086C3E88112").also { logWithTime(it) } }
+    expect(1) { part2("9C0141080250320F1802104A08").also { logWithTime(it) } }
+    logWithTime(part2(input))
 }
