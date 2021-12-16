@@ -1,101 +1,68 @@
-internal interface PacketProvider {
-    fun version(): Long
-    fun sum(): Long
-    fun product(): Long
-    fun min(): Long
-    fun max(): Long
-    fun gt(): Long
-    fun lt(): Long
-    fun eq(): Long
-}
-
 fun main() {
 
-    abstract class Packet {
-        abstract fun versionSum(): Long
-        abstract fun calculate(): Long
+    fun operation(type: Int): (Long, Long) -> Long = when (type) {
+        0 -> { a, b -> a + b }
+        1 -> { a, b -> a * b }
+        2 -> { a, b -> if (a < b) a else b }
+        3 -> { a, b -> if (a > b) a else b }
+        5 -> { a, b -> if (a > b) 1 else 0 }
+        6 -> { a, b -> if (a < b) 1 else 0 }
+        7 -> { a, b -> if (a == b) 1 else 0 }
+        else -> TODO()
     }
 
-    data class Literal(val version: Long, val value: Long) : Packet() {
-        override fun versionSum() = version
-        override fun calculate() = value
-    }
+    data class Parser(val src: String, var pos: Int = 0) {
 
+        fun read(size: Int): String = src.substring(pos, pos + size).also { pos += size }
 
-    data class SubPackets(val packets: Iterable<Long>) : PacketProvider {
-        override fun version() = packets.sumOf { it }
+        private fun parseLiteral(): Long {
+            val builder = StringBuilder()
+            do {
+                val next = read(5)
+                builder.append(next.drop(1))
+            } while (next[0] == '1')
 
-        override fun sum() = packets.reduce { acc, x -> acc + x }
-        override fun product() = packets.reduce { acc, x -> acc * x }
-        override fun min() = packets.reduce { a, b -> minOf(a, b) }
-        override fun max() = packets.reduce { a, b -> maxOf(a, b) }
-        override fun gt() = packets.reduce { a, b -> if (a > b) 1 else 0 }
-        override fun lt() = packets.reduce { a, b -> if (a < b) 1 else 0 }
-        override fun eq() = packets.reduce { a, b -> if (a == b) 1 else 0 }
-    }
-
-    data class Operator(val version: Long, val type: Int, val packets: PacketProvider) : Packet() {
-        override fun versionSum() = version + packets.version()
-
-        override fun calculate() = when (type) {
-            0 -> packets.sum()
-            1 -> packets.product()
-            2 -> packets.min()
-            3 -> packets.max()
-            5 -> packets.gt()
-            6 -> packets.lt()
-            7 -> packets.eq()
-            else -> TODO()
+            return builder.toString().toLong(2)
         }
-    }
 
-    data class ParseProcess(val src: String, var pos: Int = 0) {
-        fun takeBits(size: Int): String = src.substring(pos, pos + size).also { pos += size }
-
-        fun decode(op: (Packet) -> Long): Long {
-            val version = takeBits(3).toLong(2)
-            return when (val type = takeBits(3).toInt(2)
-            ) {
-                4 -> {
-                    val builder = StringBuilder()
-                    do {
-                        val next = takeBits(5)
-                        builder.append(next.drop(1))
-                    } while (next[0] == '1')
-                    Literal(version, builder.toString().toLong(2)).let(op)
-                }
-                else -> {
-                    Operator(version, type, subPackets(op)).let(op)
-                }
+        private fun <T> parseOperation(op: () -> T) = sequence {
+            when (read(1)) {
+                "0" -> (readInt(15) + pos).let { while (pos < it) this.yield(op()) }
+                "1" -> repeat(readInt(11)) { this.yield(op()) }
+                else -> error("wtf")
             }
         }
 
-        private fun subPackets(op: (Packet) -> Long) = sequence {
-            when (takeBits(1)) {
-                "0" -> {
-                    val end = takeBits(15).toInt(2) + pos
-                    while (pos < end) {
-                        yield(decode(op))
-                    }
-                }
-                "1" -> {
-                    repeat(takeBits(11).toInt(2)) { yield(decode(op)) }
-                }
-                else -> TODO()
+        fun decodeVersion(): Int {
+            val version = readInt(3)
+            return when (readInt(3)) {
+                4 -> version.also { parseLiteral() }
+                else -> version + parseOperation(this::decodeVersion).sum()
             }
-        }.asIterable().let { SubPackets(it) }
+        }
+
+        fun decodeValue(): Long {
+            readInt(3)
+            return when (val type = readInt(3)) {
+                4 -> parseLiteral()
+                else -> parseOperation(this::decodeValue).reduce(operation(type))
+            }
+        }
+
+        private fun readInt(size: Int) = read(size).toInt(2)
+
     }
 
-    fun createProcess(hex: String): ParseProcess {
+    fun createProcess(hex: String): Parser {
         val src = hex.flatMap { c ->
             c.digitToInt(16).toString(2).padStart(4, '0').map { it }
         }.joinToString("")
-        return ParseProcess(src)
+        return Parser(src)
     }
 
-    fun part1(input: String) = createProcess(input).decode { it.versionSum() }
+    fun part1(input: String) = createProcess(input).decodeVersion()
 
-    fun part2(input: String) = createProcess(input).decode { it.calculate() }
+    fun part2(input: String) = createProcess(input).decodeValue()
 
     // test if implementation meets criteria from the description, like:
     val input = readInput("Day16").first()
