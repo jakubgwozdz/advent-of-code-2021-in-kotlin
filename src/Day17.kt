@@ -29,9 +29,10 @@ fun main() {
         val dxLow = target.xs.first.sqrt()
         val dxHigh = target.xs.last + 1
         val dyLow = target.ys.first
-        val dyHigh = -target.ys.first - target.ys.last // WHY??
-        return (dxLow..dxHigh).asSequence()
-            .flatMap { vx -> (dyLow..dyHigh).asSequence().map { vy -> Velocity(vx, vy) } }
+        val dyHigh = -dyLow
+        return (dyLow..dyHigh).asSequence().flatMap { vy ->
+            (dxLow..dxHigh).asSequence().map { vx -> Velocity(vx, vy) }
+        }
     }
 
 
