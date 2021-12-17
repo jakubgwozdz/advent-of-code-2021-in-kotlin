@@ -1,4 +1,5 @@
 import kotlin.math.sign
+import kotlin.math.sqrt
 
 fun main() {
 
@@ -22,10 +23,15 @@ fun main() {
     fun Velocity.change() = Velocity(dx - dx.sign, dy - 1)
     fun Probe.step() = Probe(p + v, v.change())
 
-    fun reasonableVectors(target: Target) = (0..target.xs.last + 1).asSequence().flatMap { vx ->
-        (target.ys.first..-target.ys.first * 2).asSequence().map { vy ->
-            Velocity(vx, vy)
-        }
+    fun Int.sqrt() = sqrt(toDouble()).toInt()
+
+    fun reasonableVectors(target: Target): Sequence<Velocity> {
+        val dxLow = target.xs.first.sqrt()
+        val dxHigh = target.xs.last + 1
+        val dyLow = target.ys.first
+        val dyHigh = -target.ys.first - target.ys.last // WHY??
+        return (dxLow..dxHigh).asSequence()
+            .flatMap { vx -> (dyLow..dyHigh).asSequence().map { vy -> Velocity(vx, vy) } }
     }
 
 
