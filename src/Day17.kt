@@ -3,47 +3,47 @@ import kotlin.math.sign
 fun main() {
 
     data class Pos(val x: Int, val y: Int)
-    data class Velocity(val vx: Int, val vy: Int)
+    data class Velocity(val dx: Int, val dy: Int)
 
     data class Probe(val p: Pos = Pos(0, 0), val v: Velocity)
-    data class Target(val xRange: IntRange, val yRange: IntRange)
+    data class Target(val xs: IntRange, val ys: IntRange)
 
-    operator fun Pos.plus(v: Velocity) = Pos(x + v.vx, y + v.vy)
-    fun Velocity.change() = Velocity(vx - vx.sign, vy - 1)
+    operator fun Target.contains(p: Pos) = p.x in xs && p.y in ys
+    operator fun Pos.plus(v: Velocity) = Pos(x + v.dx, y + v.dy)
     operator fun Pos.compareTo(t: Target) = when {
-        x > t.xRange.last -> 1
-        y < t.yRange.first -> 1
-        x in t.xRange && y in t.yRange -> 0
+        this in t -> 0 // inside target
+        x > t.xs.last || y < t.ys.first -> 1 // overshot to the right or down
         else -> -1
     }
 
-    operator fun Target.contains(p: Pos) = p.x in xRange && p.y in yRange
     operator fun Target.contains(probe: Probe) = contains(probe.p)
+    operator fun Probe.compareTo(t: Target) = p.compareTo(t)
 
+    fun Velocity.change() = Velocity(dx - dx.sign, dy - 1)
     fun Probe.step() = Probe(p + v, v.change())
 
-    fun reasonableVectors(target: Target) = (0..target.xRange.last + 1).asSequence().flatMap { vx ->
-        (target.yRange.first..-target.yRange.first * 2).asSequence().map { vy ->
+    fun reasonableVectors(target: Target) = (0..target.xs.last + 1).asSequence().flatMap { vx ->
+        (target.ys.first..-target.ys.first * 2).asSequence().map { vy ->
             Velocity(vx, vy)
         }
     }
 
+
     val re = Regex("""^target area: x=(.+)\.\.(.+), y=(.+)\.\.(.+)$""")
-    val parse = { line: String ->
-        re.matchEntire(line)
-            ?.destructured
-            ?.let { (v1, v2, v3, v4) -> Target(v1.toInt()..v2.toInt(), v3.toInt()..v4.toInt()) }
-            ?: error("`$line` does not match `${re.pattern}`")
-    }
 
     fun part1(input: String): Int {
-        val target = parse(input)
+        val target = parse(input, re) { (v1, v2, v3, v4) ->
+            Target(
+                v1.toInt()..v2.toInt(),
+                v3.toInt()..v4.toInt()
+            )
+        }
 
         return reasonableVectors(target)
             .fold(0) { best: Int, initial: Velocity ->
                 var h = 0
                 val probe = generateSequence(Probe(v = initial)) { probe -> probe.step() }
-                    .takeWhile { probe -> probe.p <= target }
+                    .takeWhile { probe -> probe <= target }
                     .onEach { if (h < it.p.y) h = it.p.y }
                     .last()
                 if (probe in target && best < h) h else best
@@ -51,11 +51,16 @@ fun main() {
     }
 
     fun part2(input: String): Int {
-        val target = parse(input)
+        val target = parse(input, re) { (v1, v2, v3, v4) ->
+            Target(
+                v1.toInt()..v2.toInt(),
+                v3.toInt()..v4.toInt()
+            )
+        }
         return reasonableVectors(target)
             .map { initial ->
                 generateSequence(Probe(v = initial)) { probe -> probe.step() }
-                    .takeWhile { probe -> probe.p <= target }
+                    .takeWhile { probe -> probe <= target }
                     .last()
             }.count { it.p in target }
     }

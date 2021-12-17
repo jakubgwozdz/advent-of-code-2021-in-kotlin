@@ -8,6 +8,18 @@ import java.time.LocalTime
  */
 fun readInput(name: String) = File("src", "$name.txt").readLines()
 
+
+fun <T> parse(line: String, re: Regex, op: (MatchResult.Destructured) -> T): T {
+    return re.matchEntire(line)
+        ?.destructured
+        ?.let(op)
+        ?: error("`$line` does not match `${re.pattern}`")
+}
+
+fun <T> parse(line: String, pattern: String, op: (MatchResult.Destructured) -> T) =
+    parse(line, Regex(pattern), op)
+
+
 /**
  * Converts string to md5 hash.
  */
