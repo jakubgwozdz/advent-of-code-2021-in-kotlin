@@ -30,15 +30,14 @@ fun main() {
 
 
     val re = Regex("""^target area: x=(.+)\.\.(.+), y=(.+)\.\.(.+)$""")
+    val parse = { line: String ->
+        parse(line, re) { (v1, v2, v3, v4) ->
+            Target(v1.toInt()..v2.toInt(), v3.toInt()..v4.toInt())
+        }
+    }
 
     fun part1(input: String): Int {
-        val target = parse(input, re) { (v1, v2, v3, v4) ->
-            Target(
-                v1.toInt()..v2.toInt(),
-                v3.toInt()..v4.toInt()
-            )
-        }
-
+        val target = parse(input)
         return reasonableVectors(target)
             .fold(0) { best: Int, initial: Velocity ->
                 var h = 0
@@ -51,12 +50,7 @@ fun main() {
     }
 
     fun part2(input: String): Int {
-        val target = parse(input, re) { (v1, v2, v3, v4) ->
-            Target(
-                v1.toInt()..v2.toInt(),
-                v3.toInt()..v4.toInt()
-            )
-        }
+        val target = parse(input)
         return reasonableVectors(target)
             .map { initial ->
                 generateSequence(Probe(v = initial)) { probe -> probe.step() }
