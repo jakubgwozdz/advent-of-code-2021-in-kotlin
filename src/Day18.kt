@@ -1,16 +1,7 @@
 internal sealed class Token
-
-internal object Open : Token() {
-    override fun toString() = "["
-}
-
-internal object Close : Token() {
-    override fun toString() = "]"
-}
-
-internal class Value(val v: Int) : Token() {
-    override fun toString() = "$v"
-}
+internal object Open : Token()
+internal object Close : Token()
+internal class Value(val v: Int) : Token()
 
 fun main() {
 
@@ -18,77 +9,79 @@ fun main() {
         var pos: Int = 0
         fun count(): Int {
             val t = list[pos++]
-            if (t is Value) return t.v
-            check(t is Open)
-            val l = count()
-            val r = count()
-            check(list[pos++] is Close)
-            return 3 * l + 2 * r
+            return if (t is Value) t.v
+            else {
+                check(t is Open)
+                val l = count()
+                val r = count()
+                check(list[pos++] is Close)
+                3 * l + 2 * r
+            }
         }
     }
 
     fun List<Token>.magnitude() = MagnitudeCounter(this).count()
 
+    fun MutableList<Token>.explodeAtPos(pos: Int) {
+        check(removeAt(pos) == Open)
+        val left = removeAt(pos) as Value
+        val right = removeAt(pos) as Value
+        check(removeAt(pos) is Close)
+
+        (pos - 1 downTo 0).firstOrNull { this[it] is Value }?.let {
+            this[it] = Value(left.v + (this[it] as Value).v)
+        }
+
+        (pos..lastIndex).firstOrNull { this[it] is Value }?.let {
+            this[it] = Value(right.v + (this[it] as Value).v)
+        }
+
+        add(pos, Value(0))
+    }
+
     fun MutableList<Token>.explode(): Boolean {
         var level = 0
-        var pos = 0
-        while (pos in indices) {
+        for (pos in indices) {
             val c = this[pos]
             if (c == Open) {
                 level++
                 if (level > 4) {
-                    check(removeAt(pos) == c)
-                    val left = removeAt(pos)
-                    check(left is Value)
-                    val right = removeAt(pos)
-                    check(right is Value)
-                    check(removeAt(pos) is Close)
-
-                    (pos - 1 downTo 0).firstOrNull { this[it] is Value }?.let {
-                        this[it] = Value(left.v + (this[it] as Value).v)
-                    }
-
-                    (pos..lastIndex).firstOrNull { this[it] is Value }?.let {
-                        this[it] = Value(right.v + (this[it] as Value).v)
-                    }
-
-                    add(pos, Value(0))
-
+                    explodeAtPos(pos)
                     return true
                 }
             } else if (c == Close) {
                 level--
             }
-            pos++
         }
         return false
+    }
+
+    fun MutableList<Token>.splitAtPos(pos: Int) {
+        val t = removeAt(pos) as Value
+        val l = t.v / 2
+        val r = t.v - l
+        addAll(pos, listOf(Open, Value(l), Value(r), Close))
     }
 
     fun MutableList<Token>.split(): Boolean {
-        var pos = 0
-        while (pos in indices) {
+        for (pos in indices) {
             val t = this[pos]
             if (t is Value && t.v >= 10) {
-                val l = t.v / 2
-                val r = t.v - l
-                removeAt(pos)
-                addAll(pos, listOf(Open, Value(l), Value(r), Close))
+                splitAtPos(pos)
                 return true
             }
-            pos++
         }
         return false
     }
 
-    fun add(a: List<Token>, b: List<Token>): List<Token> {
-        val result = mutableListOf<Token>(Open)
-        result += a
-        result += b
-        result += Close
+    fun addition(a: List<Token>, b: List<Token>) = buildList {
+        add(Open)
+        addAll(a)
+        addAll(b)
+        add(Close)
         do {
-            val changed = result.explode() || result.split()
+            val changed = explode() || split()
         } while (changed)
-        return result
     }
 
     fun tokens(it: String) = it.mapNotNull { c ->
@@ -102,12 +95,12 @@ fun main() {
     }
 
     fun part1(input: List<String>) = input.map { tokens(it) }
-        .reduce(::add)
+        .reduce(::addition)
         .magnitude()
 
     fun part2(input: List<String>): Int = input.map { tokens(it) }
         .let { l ->
-            l.flatMap { l1 -> l.map { l2 -> add(l1, l2) } }
+            l.flatMap { l1 -> l.map { l2 -> addition(l1, l2) } }
                 .maxOf { it.magnitude() }
         }
     // test if implementation meets criteria from the description, like:
