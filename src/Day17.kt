@@ -25,16 +25,6 @@ fun main() {
 
     fun Int.sqrt() = sqrt(toDouble()).toInt()
 
-    fun reasonableVectors(target: Target): Sequence<Velocity> {
-        val dxLow = target.xs.first.sqrt()
-        val dxHigh = target.xs.last + 1
-        val dyLow = target.ys.first
-        val dyHigh = -dyLow
-        return (dyLow..dyHigh).asSequence().flatMap { vy ->
-            (dxLow..dxHigh).asSequence().map { vx -> Velocity(vx, vy) }
-        }
-    }
-
 
     val re = Regex("""^target area: x=(.+)\.\.(.+), y=(.+)\.\.(.+)$""")
     val parse = { line: String ->
@@ -43,22 +33,16 @@ fun main() {
         }
     }
 
-    fun part1(input: String): Int {
-        val target = parse(input)
-        return reasonableVectors(target)
-            .fold(0) { best: Int, initial: Velocity ->
-                var h = 0
-                val probe = generateSequence(Probe(v = initial)) { probe -> probe.step() }
-                    .takeWhile { probe -> probe <= target }
-                    .onEach { if (h < it.p.y) h = it.p.y }
-                    .last()
-                if (probe in target && best < h) h else best
-            }
-    }
+    fun part1(input: String): Int = parse(input).ys.first.let { y1 -> y1 * (y1 + 1) / 2 }
 
     fun part2(input: String): Int {
         val target = parse(input)
-        return reasonableVectors(target)
+        val dxLow = target.xs.first.sqrt()
+        val dxHigh = target.xs.last + 1
+        val dyLow = target.ys.first
+        val dyHigh = -dyLow
+        return (dyLow..dyHigh).asSequence()
+            .flatMap { vy -> (dxLow..dxHigh).asSequence().map { vx -> Velocity(vx, vy) } }
             .map { initial ->
                 generateSequence(Probe(v = initial)) { probe -> probe.step() }
                     .takeWhile { probe -> probe <= target }
