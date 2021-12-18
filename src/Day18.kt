@@ -1,5 +1,3 @@
-import java.util.*
-
 internal sealed class Token
 
 internal object Open : Token() {
@@ -29,40 +27,32 @@ fun main() {
         }
     }
 
-    fun magnitude(list: List<Token>) = MagnitudeCounter(list).count()
+    fun List<Token>.magnitude() = MagnitudeCounter(this).count()
 
-    fun tryToExplode(list: LinkedList<Token>): Boolean {
+    fun MutableList<Token>.explode(): Boolean {
         var level = 0
         var pos = 0
-        while (pos in list.indices) {
-            val c = list[pos]
+        while (pos in indices) {
+            val c = this[pos]
             if (c == Open) {
                 level++
                 if (level > 4) {
-                    val left = list[pos + 1]
-                    val right = list[pos + 2]
+                    check(removeAt(pos) == c)
+                    val left = removeAt(pos)
                     check(left is Value)
+                    val right = removeAt(pos)
                     check(right is Value)
+                    check(removeAt(pos) is Close)
 
-                    val prevValueIndex = (pos downTo 0).firstOrNull { list[it] is Value }
-                    val nextValueIndex = (pos + 3..list.lastIndex).firstOrNull { list[it] is Value }
-
-                    prevValueIndex?.let {
-                        val p = list[it]
-                        check(p is Value)
-                        list[it] = Value(left.v + p.v)
+                    (pos - 1 downTo 0).firstOrNull { this[it] is Value }?.let {
+                        this[it] = Value(left.v + (this[it] as Value).v)
                     }
 
-                    nextValueIndex?.let {
-                        val p = list[it]
-                        check(p is Value)
-                        list[it] = Value(right.v + p.v)
+                    (pos..lastIndex).firstOrNull { this[it] is Value }?.let {
+                        this[it] = Value(right.v + (this[it] as Value).v)
                     }
 
-                    list.removeAt(pos)
-                    list.removeAt(pos)
-                    list.removeAt(pos)
-                    list[pos] = Value(0)
+                    add(pos, Value(0))
 
                     return true
                 }
@@ -74,17 +64,15 @@ fun main() {
         return false
     }
 
-    fun tryToSplit(list: LinkedList<Token>): Boolean {
+    fun MutableList<Token>.split(): Boolean {
         var pos = 0
-        while (pos in list.indices) {
-            val t = list[pos]
+        while (pos in indices) {
+            val t = this[pos]
             if (t is Value && t.v >= 10) {
                 val l = t.v / 2
                 val r = t.v - l
-                list[pos] = Close
-                list.add(pos, Value(r))
-                list.add(pos, Value(l))
-                list.add(pos, Open)
+                removeAt(pos)
+                addAll(pos, listOf(Open, Value(l), Value(r), Close))
                 return true
             }
             pos++
@@ -92,16 +80,18 @@ fun main() {
         return false
     }
 
-    fun reduce(list: LinkedList<Token>) {
-        var done = false
-        while (!done) {
-            done = true
-            if (tryToExplode(list)) done = false
-            else if (tryToSplit(list)) done = false
-        }
+    fun add(a: List<Token>, b: List<Token>): List<Token> {
+        val result = mutableListOf<Token>(Open)
+        result += a
+        result += b
+        result += Close
+        do {
+            val changed = result.explode() || result.split()
+        } while (changed)
+        return result
     }
 
-    fun tokens(it: String) = LinkedList(it.mapNotNull { c ->
+    fun tokens(it: String) = it.mapNotNull { c ->
         when {
             c.isDigit() -> Value(c.digitToInt())
             c == '[' -> Open
@@ -109,23 +99,16 @@ fun main() {
             c == ',' -> null
             else -> error("wtf `$c`")
         }
-    }.toList())
-
-    fun add(a: LinkedList<Token>, b: LinkedList<Token>) = LinkedList<Token>().apply {
-        add(Open)
-        addAll(a)
-        addAll(b)
-        add(Close)
-    }.apply { reduce(this) }
+    }
 
     fun part1(input: List<String>) = input.map { tokens(it) }
         .reduce(::add)
-        .let { magnitude(it) }
+        .magnitude()
 
     fun part2(input: List<String>): Int = input.map { tokens(it) }
         .let { l ->
             l.flatMap { l1 -> l.map { l2 -> add(l1, l2) } }
-                .maxOf { magnitude(it) }
+                .maxOf { it.magnitude() }
         }
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day18_test")
