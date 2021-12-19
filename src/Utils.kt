@@ -1,6 +1,8 @@
 import java.io.File
 import java.math.BigInteger
 import java.security.MessageDigest
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalTime
 
 /**
@@ -31,8 +33,11 @@ fun <T> expect(expected: T, block: () -> T) {
     check(expected == actual) { "expected $expected, but got $actual" }
 }
 
+val startTime = Instant.now()
+
 fun <T> logWithTime(msg: T, op: T.() -> String = { "$this" }) {
-    println("${LocalTime.now().toString().take(12).padEnd(12)}: ${msg.op()}")
+    val t = LocalTime.of(0, 0) + Duration.between(startTime, Instant.now())
+    println("${t.toString().take(12).padEnd(12)}: ${msg.op()}")
 }
 
 
