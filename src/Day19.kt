@@ -2,17 +2,9 @@ import kotlin.math.absoluteValue
 
 fun main() {
 
-    val re = Regex("""^(\w+) -(\w+)$""")
-    val parse = { line: String ->
-        re.matchEntire(line)
-            ?.destructured
-            ?.let { (v1, v2) -> v1 to v2 }
-            ?: error("`$line` does not match `${re.pattern}`")
-    }
-
     data class Pos(val x: Int, val y: Int, val z: Int)
 
-    data class Scanner(val id: Int, val beacons: List<Pos>, val pos:Pos = Pos(0,0,0))
+    data class Scanner(val id: Int, val beacons: List<Pos>, val pos: Pos = Pos(0, 0, 0))
 
 
     fun parse(input: List<String>): Sequence<Scanner> = sequence {
@@ -36,12 +28,19 @@ fun main() {
 
     val sincos = listOf(0 to 1, 1 to 0, 0 to -1, -1 to 0)
 
-    val rotations: List<(Pos) -> Pos> = (0..3).flatMap { rx ->
+    fun rotationString(op: (Pos) -> Pos): String = op(Pos(1, 2, 3)).let {
+        "{(x,y,z) -> ${
+            it.toString().replace("1", "x").replace("2", "y").replace("3", "z")
+        }}"
+    }
+
+    val rotations2: List<(Pos) -> Pos> = (0..3).flatMap { rx ->
         (0..3).flatMap { ry ->
             (0..3).map { rz -> Triple(rx, ry, rz) }
         }
     }
-        .map<Triple<Int, Int, Int>, (Pos) -> Pos> { (rx, ry, rz) ->
+        .map { it ->
+            val (rx, ry, rz) = it
             val (sina, cosa) = sincos[rx]
             val (sinb, cosb) = sincos[ry]
             val (sinc, cosc) = sincos[rz]
@@ -58,23 +57,42 @@ fun main() {
             val zy = cosb * sinc
             val zz = cosb * cosc
 
-            { (x, y, z) ->
+            val op: (Pos) -> Pos = { (x, y, z) ->
                 Pos(xx * x + xy * y + xz * z, yx * x + yy * y + yz * z, zx * x + zy * y + zz * z)
             }
+            it to op
         }
+        .groupBy { rotationString(it.second) }
+        .onEach { println("${it.key}, // ${it.value.map { a -> a.first }}") }
+        .values.map { it.first().second }
 
 
-//
-//    val rotations: List<(Pos)->Pos> = listOf(
-//        {(x,y,z)->Pos(x,y,z)},
-//        {(x,y,z)->Pos(-x,y,z)},
-//        {(x,y,z)->Pos(x,z,y)},
-//        {(x,y,z)->Pos(-x,z,y)},
-//        {(x,y,z)->Pos(x,-y,z)},
-//        {(x,y,z)->Pos(-x,y,z)},
-//        {(x,y,z)->Pos(x,z,y)},
-//        {(x,y,z)->Pos(-x,z,y)},
-//    )
+    val rotations: List<(Pos) -> Pos> = listOf(
+        { (x, y, z) -> Pos(x = x, y = y, z = z) },
+        { (x, y, z) -> Pos(x = x, y = -z, z = y) },
+        { (x, y, z) -> Pos(x = x, y = -y, z = -z) },
+        { (x, y, z) -> Pos(x = x, y = z, z = -y) },
+        { (x, y, z) -> Pos(x = z, y = y, z = -x) },
+        { (x, y, z) -> Pos(x = y, y = -z, z = -x) },
+        { (x, y, z) -> Pos(x = -z, y = -y, z = -x) },
+        { (x, y, z) -> Pos(x = -y, y = z, z = -x) },
+        { (x, y, z) -> Pos(x = -x, y = y, z = -z) },
+        { (x, y, z) -> Pos(x = -x, y = -z, z = -y) },
+        { (x, y, z) -> Pos(x = -x, y = -y, z = z) },
+        { (x, y, z) -> Pos(x = -x, y = z, z = y) },
+        { (x, y, z) -> Pos(x = -z, y = y, z = x) },
+        { (x, y, z) -> Pos(x = -y, y = -z, z = x) },
+        { (x, y, z) -> Pos(x = z, y = -y, z = x) },
+        { (x, y, z) -> Pos(x = y, y = z, z = x) },
+        { (x, y, z) -> Pos(x = -y, y = x, z = z) },
+        { (x, y, z) -> Pos(x = z, y = x, z = y) },
+        { (x, y, z) -> Pos(x = y, y = x, z = -z) },
+        { (x, y, z) -> Pos(x = -z, y = x, z = -y) },
+        { (x, y, z) -> Pos(x = -y, y = -x, z = -z) },
+        { (x, y, z) -> Pos(x = z, y = -x, z = -y) },
+        { (x, y, z) -> Pos(x = y, y = -x, z = z) },
+        { (x, y, z) -> Pos(x = -z, y = -x, z = y) },
+    )
 
     fun Scanner.changed(op: (Pos) -> Pos) =
         copy(beacons = beacons.map(op), pos = pos.let(op))
@@ -112,12 +130,12 @@ fun main() {
             logWithTime("processing ${scanner.id}")
 
             val found = rotations.asSequence()
-    //                .onEach { logWithTime("checking rotation ${it(Pos(1,2,3))}") }
+                //                .onEach { logWithTime("checking rotation ${it(Pos(1,2,3))}") }
                 .map { op -> scanner.changed(op) }
                 .flatMap { new -> fixed.asSequence().map { new to it } }
                 .mapNotNull { (n, f) -> compare(n, f) }
                 .toList()
-    //                .firstOrNull()
+            //                .firstOrNull()
 
             if (found.isNotEmpty()) fixed.add(found[0])
                 .also { logWithTime("fixed ${fixed.size} so far") }
@@ -130,17 +148,17 @@ fun main() {
 
         val fixed = solve(input)
 
-        return fixed.map {it.beacons}.flatten().distinct().size
+        return fixed.map { it.beacons }.flatten().distinct().size
 
     }
 
     fun part2(input: List<String>): Int {
         val fixed = solve(input)
         return fixed.maxOf { a ->
-            val (xa,ya,za) = a.pos
+            val (xa, ya, za) = a.pos
             fixed.maxOf { b ->
-                val (xb,yb,zb) = b.pos
-                (xa-xb).absoluteValue + (ya-yb).absoluteValue + (za-zb).absoluteValue
+                val (xb, yb, zb) = b.pos
+                (xa - xb).absoluteValue + (ya - yb).absoluteValue + (za - zb).absoluteValue
             }
         }
     }
