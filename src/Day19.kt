@@ -23,49 +23,7 @@ fun main() {
             yield(scanner)
             i++
         }
-
     }
-
-    val sincos = listOf(0 to 1, 1 to 0, 0 to -1, -1 to 0)
-
-    fun rotationString(op: (Pos) -> Pos): String = op(Pos(1, 2, 3)).let {
-        "{(x,y,z) -> ${
-            it.toString().replace("1", "x").replace("2", "y").replace("3", "z")
-        }}"
-    }
-
-    val rotations2: List<(Pos) -> Pos> = (0..3).flatMap { rx ->
-        (0..3).flatMap { ry ->
-            (0..3).map { rz -> Triple(rx, ry, rz) }
-        }
-    }
-        .map { it ->
-            val (rx, ry, rz) = it
-            val (sina, cosa) = sincos[rx]
-            val (sinb, cosb) = sincos[ry]
-            val (sinc, cosc) = sincos[rz]
-
-            val xx = cosa * cosb
-            val xy = cosa * sinb * sinc - sina * cosc
-            val xz = cosa * sinb * cosc + sina * sinc
-
-            val yx = sina * cosb
-            val yy = sina * sinb * sinc + cosa * cosc
-            val yz = sina * sinb * cosc - cosa * sinc
-
-            val zx = -sinb
-            val zy = cosb * sinc
-            val zz = cosb * cosc
-
-            val op: (Pos) -> Pos = { (x, y, z) ->
-                Pos(xx * x + xy * y + xz * z, yx * x + yy * y + yz * z, zx * x + zy * y + zz * z)
-            }
-            it to op
-        }
-        .groupBy { rotationString(it.second) }
-        .onEach { println("${it.key}, // ${it.value.map { a -> a.first }}") }
-        .values.map { it.first().second }
-
 
     val rotations: List<(Pos) -> Pos> = listOf(
         { (x, y, z) -> Pos(x = x, y = y, z = z) },
@@ -100,18 +58,15 @@ fun main() {
     fun Pos.translate(s: Pos, e: Pos) = Pos(x + e.x - s.x, y + e.y - s.y, z + e.z - s.z)
 
     fun compare(candidate: Scanner, fixed: Scanner): Scanner? {
-//        logWithTime("comparing ${candidate.id} to ${fixed.id}")
 
         return candidate.beacons.asSequence().flatMap { s ->
             fixed.beacons.asSequence().map<Pos, (Pos) -> Pos> { e -> { it.translate(s, e) } }
         }
-//            .onEach { logWithTime("checking translation ${it(Pos(0,0,0))}") }
             .map { op -> candidate.changed(op) }
             .firstOrNull { result ->
                 val c = fixed.beacons.sumOf { f ->
                     result.beacons.count { r -> r == f }
                 }
-//                    .also { println(it) }
                 c >= 12
             }
     }
@@ -130,14 +85,13 @@ fun main() {
             logWithTime("processing ${scanner.id}")
 
             val found = rotations.asSequence()
-                //                .onEach { logWithTime("checking rotation ${it(Pos(1,2,3))}") }
                 .map { op -> scanner.changed(op) }
                 .flatMap { new -> fixed.asSequence().map { new to it } }
                 .mapNotNull { (n, f) -> compare(n, f) }
                 .toList()
-            //                .firstOrNull()
+                .firstOrNull()
 
-            if (found.isNotEmpty()) fixed.add(found[0])
+            if (found!=null) fixed.add(found)
                 .also { logWithTime("fixed ${fixed.size} so far") }
             else toGo.offer(scanner)
         }
@@ -166,8 +120,8 @@ fun main() {
 // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day19_test")
     val input = readInput("Day19")
-    expect(79) { part1(testInput).also { logWithTime(it) } }
-    logWithTime(part1(input))
-    expect(3621) { part2(testInput).also { logWithTime(it) } }
+//    expect(79) { part1(testInput).also { logWithTime(it) } }
+//    logWithTime(part1(input))
+//    expect(3621) { part2(testInput).also { logWithTime(it) } }
     logWithTime(part2(input))
 }
