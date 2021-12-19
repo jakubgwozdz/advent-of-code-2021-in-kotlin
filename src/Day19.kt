@@ -3,9 +3,7 @@ import kotlin.math.absoluteValue
 fun main() {
 
     data class Pos(val x: Int, val y: Int, val z: Int)
-
     data class Scanner(val id: Int, val beacons: List<Pos>, val pos: Pos = Pos(0, 0, 0))
-
 
     fun parse(input: List<String>): Sequence<Scanner> = sequence {
         var i = 0
@@ -27,51 +25,55 @@ fun main() {
 
     val rotations: List<(Pos) -> Pos> = listOf(
         { (x, y, z) -> Pos(x = x, y = y, z = z) },
-        { (x, y, z) -> Pos(x = x, y = -z, z = y) },
         { (x, y, z) -> Pos(x = x, y = -y, z = -z) },
         { (x, y, z) -> Pos(x = x, y = z, z = -y) },
-        { (x, y, z) -> Pos(x = z, y = y, z = -x) },
-        { (x, y, z) -> Pos(x = y, y = -z, z = -x) },
-        { (x, y, z) -> Pos(x = -z, y = -y, z = -x) },
-        { (x, y, z) -> Pos(x = -y, y = z, z = -x) },
+        { (x, y, z) -> Pos(x = x, y = -z, z = y) },
         { (x, y, z) -> Pos(x = -x, y = y, z = -z) },
-        { (x, y, z) -> Pos(x = -x, y = -z, z = -y) },
         { (x, y, z) -> Pos(x = -x, y = -y, z = z) },
         { (x, y, z) -> Pos(x = -x, y = z, z = y) },
-        { (x, y, z) -> Pos(x = -z, y = y, z = x) },
-        { (x, y, z) -> Pos(x = -y, y = -z, z = x) },
-        { (x, y, z) -> Pos(x = z, y = -y, z = x) },
-        { (x, y, z) -> Pos(x = y, y = z, z = x) },
-        { (x, y, z) -> Pos(x = -y, y = x, z = z) },
-        { (x, y, z) -> Pos(x = z, y = x, z = y) },
+        { (x, y, z) -> Pos(x = -x, y = -z, z = -y) },
+
         { (x, y, z) -> Pos(x = y, y = x, z = -z) },
-        { (x, y, z) -> Pos(x = -z, y = x, z = -y) },
-        { (x, y, z) -> Pos(x = -y, y = -x, z = -z) },
-        { (x, y, z) -> Pos(x = z, y = -x, z = -y) },
         { (x, y, z) -> Pos(x = y, y = -x, z = z) },
+        { (x, y, z) -> Pos(x = y, y = z, z = x) },
+        { (x, y, z) -> Pos(x = y, y = -z, z = -x) },
+        { (x, y, z) -> Pos(x = -y, y = x, z = z) },
+        { (x, y, z) -> Pos(x = -y, y = -x, z = -z) },
+        { (x, y, z) -> Pos(x = -y, y = z, z = -x) },
+        { (x, y, z) -> Pos(x = -y, y = -z, z = x) },
+
+        { (x, y, z) -> Pos(x = z, y = x, z = y) },
+        { (x, y, z) -> Pos(x = z, y = -x, z = -y) },
+        { (x, y, z) -> Pos(x = z, y = y, z = -x) },
+        { (x, y, z) -> Pos(x = z, y = -y, z = x) },
+        { (x, y, z) -> Pos(x = -z, y = x, z = -y) },
         { (x, y, z) -> Pos(x = -z, y = -x, z = y) },
+        { (x, y, z) -> Pos(x = -z, y = y, z = x) },
+        { (x, y, z) -> Pos(x = -z, y = -y, z = -x) },
     )
+
+    fun Pos.translate(s: Pos, e: Pos) = Pos(x + e.x - s.x, y + e.y - s.y, z + e.z - s.z)
 
     fun Scanner.changed(op: (Pos) -> Pos) =
         copy(beacons = beacons.map(op), pos = pos.let(op))
 
-    fun Pos.translate(s: Pos, e: Pos) = Pos(x + e.x - s.x, y + e.y - s.y, z + e.z - s.z)
-
-    fun compare(candidate: Scanner, fixed: Scanner): Scanner? {
-
-        return candidate.beacons.asSequence().flatMap { s ->
-            fixed.beacons.asSequence().map<Pos, (Pos) -> Pos> { e -> { it.translate(s, e) } }
-        }
-            .map { op -> candidate.changed(op) }
-            .firstOrNull { result ->
-                val c = fixed.beacons.sumOf { f ->
-                    result.beacons.count { r -> r == f }
-                }
-                c >= 12
+    fun Scanner.matches(other: Scanner): Boolean {
+        var failures = 0
+        beacons.forEach { b1 ->
+            if (b1 !in other.beacons) {
+                failures++
+                if (failures > beacons.size - 12) return false
             }
+        }
+        return true
     }
 
-    fun solve(input: List<String>): MutableList<Scanner> {
+    fun Scanner.tryMatch(fixed: Scanner): Scanner? =
+        cartesian(this.beacons, fixed.beacons) { s, e -> { p: Pos -> p.translate(s, e) } }
+            .map { op -> changed(op) }
+            .firstOrNull(fixed::matches)
+
+    fun solve(input: List<String>): List<Scanner> {
         val toGo = Queue<Scanner>()
         val fixed = mutableListOf<Scanner>()
 
@@ -82,46 +84,37 @@ fun main() {
 
         while (toGo.isNotEmpty()) {
             val scanner = toGo.poll()
-            logWithTime("processing ${scanner.id}")
+//            logWithTime("processing ${scanner.id}")
 
             val found = rotations.asSequence()
                 .map { op -> scanner.changed(op) }
                 .flatMap { new -> fixed.asSequence().map { new to it } }
-                .mapNotNull { (n, f) -> compare(n, f) }
-                .toList()
+                .mapNotNull { (n, f) -> n.tryMatch(f) }
                 .firstOrNull()
 
-            if (found!=null) fixed.add(found)
-                .also { logWithTime("fixed ${fixed.size} so far") }
+            if (found != null) fixed.add(0,found)
+//                .also { logWithTime("fixed ${fixed.size} already") }
             else toGo.offer(scanner)
         }
         return fixed
     }
 
-    fun part1(input: List<String>): Int {
+    fun part1(input: List<String>) = solve(input).map { solved -> solved.beacons }
+        .flatten().distinct().size
 
-        val fixed = solve(input)
-
-        return fixed.map { it.beacons }.flatten().distinct().size
-
-    }
-
-    fun part2(input: List<String>): Int {
-        val fixed = solve(input)
-        return fixed.maxOf { a ->
+    fun part2(input: List<String>) = solve(input).let { solved ->
+        cartesian(solved, solved) { a, b ->
             val (xa, ya, za) = a.pos
-            fixed.maxOf { b ->
-                val (xb, yb, zb) = b.pos
-                (xa - xb).absoluteValue + (ya - yb).absoluteValue + (za - zb).absoluteValue
-            }
-        }
+            val (xb, yb, zb) = b.pos
+            (xa - xb).absoluteValue + (ya - yb).absoluteValue + (za - zb).absoluteValue
+        }.maxOrNull()
     }
 
 // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day19_test")
     val input = readInput("Day19")
-//    expect(79) { part1(testInput).also { logWithTime(it) } }
-//    logWithTime(part1(input))
-//    expect(3621) { part2(testInput).also { logWithTime(it) } }
+    expect(79) { part1(testInput).also { logWithTime(it) } }
+    logWithTime(part1(input))
+    expect(3621) { part2(testInput).also { logWithTime(it) } }
     logWithTime(part2(input))
 }
