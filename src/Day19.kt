@@ -69,7 +69,8 @@ fun main() {
     }
 
     fun Scanner.tryMatch(fixed: Scanner): Scanner? =
-        cartesian(this.beacons, fixed.beacons) { s, e -> { p: Pos -> p.translate(s, e) } }
+        cartesian(this.beacons, fixed.beacons)
+            .map { (s, e) -> { p: Pos -> p.translate(s, e) } }
             .map { op -> changed(op) }
             .firstOrNull(fixed::matches)
 
@@ -92,7 +93,7 @@ fun main() {
                 .mapNotNull { (n, f) -> n.tryMatch(f) }
                 .firstOrNull()
 
-            if (found != null) fixed.add(0,found)
+            if (found != null) fixed.add(0, found)
 //                .also { logWithTime("fixed ${fixed.size} already") }
             else toGo.offer(scanner)
         }
@@ -103,11 +104,12 @@ fun main() {
         .flatten().distinct().size
 
     fun part2(input: List<String>) = solve(input).let { solved ->
-        cartesian(solved, solved) { a, b ->
-            val (xa, ya, za) = a.pos
-            val (xb, yb, zb) = b.pos
-            (xa - xb).absoluteValue + (ya - yb).absoluteValue + (za - zb).absoluteValue
-        }.maxOrNull()
+        cartesian(solved, solved)
+            .map { (a, b) ->
+                val (xa, ya, za) = a.pos
+                val (xb, yb, zb) = b.pos
+                (xa - xb).absoluteValue + (ya - yb).absoluteValue + (za - zb).absoluteValue
+            }.maxOrNull()
     }
 
 // test if implementation meets criteria from the description, like:

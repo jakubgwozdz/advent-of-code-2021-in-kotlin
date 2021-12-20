@@ -40,8 +40,8 @@ fun <T> logWithTime(msg: T, op: T.() -> String = { "$this" }) {
     println("${t.toString().take(12).padEnd(12)}: ${msg.op()}")
 }
 
-fun <T, R> cartesian(a: Iterable<T>, b: Iterable<T>, op: (T, T) -> R): Sequence<R> {
-    return a.asSequence().flatMap { s -> b.asSequence().map { e -> op(s,e) } }
+fun <T1, T2> cartesian(a: Iterable<T1>, b: Iterable<T2>): Sequence<Pair<T1,T2>> {
+    return a.asSequence().flatMap { s -> b.asSequence().map { e -> s to e } }
 }
 
 
