@@ -1,84 +1,81 @@
 import java.awt.Color
 import java.awt.image.BufferedImage
+import java.io.File
 
 fun main() {
 
-    val light = Color.WHITE.rgb
-    val dark = Color.BLACK.rgb
+    val light = Color.WHITE
+    val dark = Color.BLACK
 
-    operator fun BufferedImage.get(row: Int, column: Int): Int = (row - 1..row + 1).map { y ->
-        val outside = getRGB(0, 0)
-        if (y !in 0 until height) listOf(outside, outside, outside)
-        else (column - 1..column + 1).map { x ->
-            if (x !in 0 until width) outside
-            else getRGB(x, y)
-        }
+    fun color(c: Char) = when (c) {
+        '.' -> light
+        '#' -> dark
+        else -> error("wtf '$c'")
     }
-        .flatten()
-        .fold(0) { acc, i -> acc * 2 + if (i == dark) 1 else 0 }
 
-    fun BufferedImage.enhanced(alg: String): BufferedImage {
-        val image2 = BufferedImage(
-            width,
-            height,
-            BufferedImage.TYPE_BYTE_BINARY
-        )
-        (0 until width).forEach { x ->
-            (0 until height).forEach { y ->
-                val code = this[y, x]
-                val color = when (alg[code]) {
-                    '.' -> light
-                    '#' -> dark
-                    else -> error("alg[$code]=${alg[code]}")
-                }
-                image2.setRGB(x, y, color)
+    operator fun BufferedImage.get(row: Int, column: Int): Int {
+        val outside = getRGB(0, 0)
+        return (row - 1..row + 1).map { y ->
+            if (y !in 0 until height) listOf(outside, outside, outside)
+            else (column - 1..column + 1).map { x ->
+                if (x !in 0 until width) outside
+                else getRGB(x, y)
             }
         }
-        return image2
+            .flatten()
+            .fold(0) { acc, i -> acc * 2 + if (i == dark.rgb) 1 else 0 }
     }
 
+    fun BufferedImage.enhanced(alg: List<Color>) =
+        BufferedImage(width, height, type).also { result ->
+            (0 until width).forEach { x ->
+                (0 until height).forEach { y -> result.setRGB(x, y, alg[this[y, x]].rgb) }
+            }
+        }
+
     fun BufferedImage.count(): Int = (0 until width).sumOf { x ->
-        (0 until height).count { y -> getRGB(x, y) == dark }
+        (0 until height).count { y -> getRGB(x, y) == dark.rgb }
     }
+
+    val border = 60
 
     fun renderAsBitmap(data: List<String>): BufferedImage {
         val image = BufferedImage(
-            data.first().length + 100,
-            data.size + 100,
-            BufferedImage.TYPE_BYTE_BINARY
+            border + data[0].length + border,
+            border + data.size + border,
+            BufferedImage.TYPE_BYTE_INDEXED
         )
         (0 until image.width).forEach { x ->
-            (0 until image.height).forEach { y ->
-                image.setRGB(x, y, light)
-            }
+            (0 until image.height).forEach { y -> image.setRGB(x, y, light.rgb) }
         }
         data.forEachIndexed { row, line ->
-            line.forEachIndexed { col, c ->
-                image.setRGB(
-                    col + 50, row + 50, when (c) {
-                        '.' -> light
-                        '#' -> dark
-                        else -> error("$c at $row:$col")
-                    }
-                )
-            }
+            line.forEachIndexed { col, c -> image.setRGB(col + border, row + border, color(c).rgb) }
         }
 
         return image
     }
 
     fun part1(input: List<String>): Int {
-        val alg = input.first()
+        val alg = input.first().map { color(it) }
         var image = renderAsBitmap(input.drop(2))
         repeat(2) { image = image.enhanced(alg) }
         return image.count()
     }
 
     fun part2(input: List<String>): Int {
-        val alg = input.first()
-        var image = renderAsBitmap(input.drop(2))
-        repeat(50) { image = image.enhanced(alg) }
-        return image.count()
+        val alg = input.first().map { color(it) }
+
+        AnimGif(File("src", "Day20.gif")).use { animGif ->
+
+            var image = renderAsBitmap(input.drop(2))
+                .also { animGif += it }
+
+            repeat(50) { r ->
+                image = image.enhanced(alg)
+                    .also { if (((r+1) % 2) == 0) animGif += it }
+            }
+            return image.count()
+        }
     }
 
 // test if implementation meets criteria from the description, like:
