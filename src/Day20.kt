@@ -1,15 +1,17 @@
 fun main() {
 
-    data class Img(val data: List<String>, val outside: Char) {
+    data class Img(private val data: List<String>, private val litOutside: Boolean = false) {
+
         operator fun get(row: Int, column: Int): Int {
             return (-1..1).joinToString("") { dr ->
                 val r = dr + row
-                if (r !in data.indices) "$outside$outside$outside"
-                else {
-                    val x =
-                        "$outside$outside$outside$outside$outside${data[r]}$outside$outside$outside$outside$outside"
-                    x.substring(column - 1 + 5, column + 2 + 5)
+                val border = if (litOutside) "###" else "..."
+                if (r in data.indices) {
+                    val line = "$border${data[r]}$border"
+                    val c = column + border.length
+                    line.substring(c - 1, c + 2)
                 }
+                else border
             }.replace('.', '0').replace('#', '1')
                 .toInt(2)
         }
@@ -22,7 +24,7 @@ fun main() {
                     }
                 }
             }
-            return Img(i2, if (alg[0] == '.') '.' else if (outside == '.') '#' else '.')
+            return Img(i2, if (alg[0] == '.') false else !litOutside)
         }
 
         fun count() = data.sumOf { r -> r.count { it == '#' } }
@@ -30,7 +32,7 @@ fun main() {
 
     fun part1(input: List<String>): Int {
         val alg = input.first()
-        val image = Img(input.drop(2), '.')
+        val image = Img(input.drop(2))
 
         val img1 = image.enhanced(alg)
         val img2 = img1.enhanced(alg)
@@ -40,7 +42,7 @@ fun main() {
 
     fun part2(input: List<String>): Int {
         val alg = input.first()
-        var image = Img(input.drop(2), '.')
+        var image = Img(input.drop(2))
 
         repeat(50) { image = image.enhanced(alg) }
         return image.count()
