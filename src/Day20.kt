@@ -1,90 +1,47 @@
 import java.awt.Color
 import java.awt.image.BufferedImage
 
-internal interface Img {
-    operator fun get(row: Int, column: Int): Int
-    fun enhanced(alg: String): Img
-    fun count(): Int
-}
-
-
 fun main() {
-
-    data class TextImg(private val data: List<String>, private val litOutside: Boolean = false) :
-        Img {
-
-        override operator fun get(row: Int, column: Int): Int {
-            return (-1..1).joinToString("") { dr ->
-                val r = dr + row
-                val border = if (litOutside) "###" else "..."
-                if (r in data.indices) {
-                    val line = "$border${data[r]}$border"
-                    val c = column + border.length
-                    line.substring(c - 1, c + 2)
-                } else border
-            }.replace('.', '0').replace('#', '1')
-                .toInt(2)
-        }
-
-        override fun enhanced(alg: String): Img {
-            val i2 = (-1..data.indices.last + 1).map { r ->
-                buildString {
-                    (-1..data[0].indices.last + 1).forEach { c ->
-                        append(alg[this@TextImg[r, c]])
-                    }
-                }
-            }
-            return TextImg(i2, if (alg[0] == '.') false else !litOutside)
-        }
-
-        override fun count() = data.sumOf { r -> r.count { it == '#' } }
-    }
-
-    fun renderAsText(data: List<String>): Img {
-        return TextImg(data)
-    }
 
     val light = Color.WHITE.rgb
     val dark = Color.BLACK.rgb
 
-    data class Bitmap(val image: BufferedImage) : Img {
-        override fun get(row: Int, column: Int): Int = (row - 1..row + 1).map { y ->
-            val outside = image.getRGB(0, 0)
-            if (y !in 0 until image.height) listOf(outside, outside, outside)
-            else (column - 1..column + 1).map { x ->
-                if (x !in 0 until image.width) outside
-                else image.getRGB(x, y)
-            }
-        }
-            .flatten()
-            .fold(0) { acc, i -> acc * 2 + if (i == dark) 1 else 0 }
-
-        override fun enhanced(alg: String): Img {
-            val image2 = BufferedImage(
-                image.width,
-                image.height,
-                BufferedImage.TYPE_BYTE_BINARY
-            )
-            (0 until image2.width).forEach { x ->
-                (0 until image2.height).forEach { y ->
-                    val code = this[y, x]
-                    val color = when (alg[code]) {
-                        '.' -> light
-                        '#' -> dark
-                        else -> error("alg[$code]=${alg[code]}")
-                    }
-                    image2.setRGB(x, y, color)
-                }
-            }
-            return Bitmap(image2)
-        }
-
-        override fun count(): Int = (0 until image.width).sumOf { x ->
-            (0 until image.height).count { y -> image.getRGB(x, y) == dark }
+    operator fun BufferedImage.get(row: Int, column: Int): Int = (row - 1..row + 1).map { y ->
+        val outside = getRGB(0, 0)
+        if (y !in 0 until height) listOf(outside, outside, outside)
+        else (column - 1..column + 1).map { x ->
+            if (x !in 0 until width) outside
+            else getRGB(x, y)
         }
     }
+        .flatten()
+        .fold(0) { acc, i -> acc * 2 + if (i == dark) 1 else 0 }
 
-    fun renderAsBitmap(data: List<String>): Img {
+    fun BufferedImage.enhanced(alg: String): BufferedImage {
+        val image2 = BufferedImage(
+            width,
+            height,
+            BufferedImage.TYPE_BYTE_BINARY
+        )
+        (0 until width).forEach { x ->
+            (0 until height).forEach { y ->
+                val code = this[y, x]
+                val color = when (alg[code]) {
+                    '.' -> light
+                    '#' -> dark
+                    else -> error("alg[$code]=${alg[code]}")
+                }
+                image2.setRGB(x, y, color)
+            }
+        }
+        return image2
+    }
+
+    fun BufferedImage.count(): Int = (0 until width).sumOf { x ->
+        (0 until height).count { y -> getRGB(x, y) == dark }
+    }
+
+    fun renderAsBitmap(data: List<String>): BufferedImage {
         val image = BufferedImage(
             data.first().length + 100,
             data.size + 100,
@@ -107,7 +64,7 @@ fun main() {
             }
         }
 
-        return Bitmap(image)
+        return image
     }
 
     fun part1(input: List<String>): Int {
