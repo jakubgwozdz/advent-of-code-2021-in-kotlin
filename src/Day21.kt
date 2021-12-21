@@ -35,26 +35,42 @@ fun main() {
 
     fun part2(input: List<String>): Long {
 
-        val m: Map<Int, List<Pair<Int, Long>>> = (1..10).associateWith { s ->
+        data class Player(val pos: Int, val score: Int)
+        data class WinCount(val a: Long, val b: Long)
+
+        fun WinCount.swap() = WinCount(b, a)
+        operator fun WinCount.times(l: Long) = WinCount(l * a, l * b)
+        operator fun Long.times(w: WinCount) = WinCount(this * w.a, this * w.b)
+        operator fun WinCount.plus(o: WinCount) = WinCount(a + o.a, b + o.b)
+
+        val cache = mutableMapOf<Pair<Player, Player>, WinCount>()
+
+        val moves: Map<Int, List<Pair<Int, Long>>> = (1..10).associateWith { s ->
             (1..3).flatMap { r1 ->
                 ((1..3) * (1..3)).map { (r2, r3) -> (s + r1 + r2 + r3 - 1) % 10 + 1 }
             }.groupingBy { it }.eachCount()
                 .map { (k, v) -> k to v.toLong() }
         }
 
-        fun calculate(
-            playerA: Pair<Int, Int>,
-            playerB: Pair<Int, Int>,
-        ): Pair<Long, Long> = m[playerA.first]!!
-            .map { (ending, count) ->
-                val tt = playerA.second + ending
-                if (tt >= 21) count to 0L
-                else calculate(playerB, ending to tt).let { (a, b) -> count * b to count * a }
+        fun calculate(playerA: Player, playerB: Player): WinCount {
+            val state = playerA to playerB
+            val cached = cache[state]
+            if (cached != null) return cached
+            else {
+                val possibilities = moves[playerA.pos]!!
+                val calculated = possibilities.map { (ending, count) ->
+                    val tt = playerA.score + ending
+                    count * if (tt >= 21) WinCount(1, 0)
+                    else calculate(playerB, Player(ending, tt)).swap()
+                }
+                    .reduce { acc, w -> acc + w }
+                cache[state] = calculated
+                return calculated
             }
-            .reduce { (accA, accB), (a, b) -> accA + a to accB + b }
+        }
 
         val (p1, p2) = input.map { it.split(" ").last().toInt() }
-        val (s1, s2) = calculate(p1 to 0, p2 to 0)
+        val (s1, s2) = calculate(Player(p1, 0), Player(p2, 0))
         return s1.coerceAtLeast(s2)
 
     }
