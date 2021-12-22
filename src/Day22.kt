@@ -76,7 +76,7 @@ fun main() {
 
         logWithTime("split into ${xs.size}*${ys.size}*${zs.size} cubes")
 
-        val result = BitSet(1000 * 1000 * 1000)
+        val result = BitSet(xs.size * ys.size * zs.size)
 
         fun IntRange.splitInto(ranges: List<IntRange>): IntRange {
             val s = ranges.indexOfFirst { it.first == this.first }
@@ -91,7 +91,7 @@ fun main() {
             xRanges.forEach { xx ->
                 yRanges.forEach { yy ->
                     zRanges.forEach { zz ->
-                        result[xx * 1000000 + yy * 1000 + zz] = on
+                        result[xx * ys.size * zs.size + yy * zs.size + zz] = on
                     }
                 }
             }
@@ -104,9 +104,9 @@ fun main() {
             result.nextSetBit(index + 1).let { if (it >= 0) it else null }
         }
             .sumOf { index ->
-                val xx = index / 1000000
-                val yy = index / 1000 % 1000
-                val zz = index % 1000
+                val xx = index / zs.size / ys.size
+                val yy = index / zs.size % ys.size
+                val zz = index % zs.size
                 xs[xx].count().toLong() * ys[yy].count().toLong() * zs[zz].count().toLong()
             }
     }
