@@ -59,11 +59,11 @@ fun main() {
             else {
                 val possibilities = moves[playerA.pos]!!
                 val calculated = possibilities.map { (ending, count) ->
-                    val tt = playerA.score + ending
-                    count * if (tt >= 21) WinCount(1, 0)
-                    else calculate(playerB, Player(ending, tt)).swap()
-                }
-                    .reduce { acc, w -> acc + w }
+                    val score = playerA.score + ending
+                    val wins = if (score >= 21) WinCount(1, 0)
+                    else calculate(playerA = playerB, playerB = Player(ending, score)).swap()
+                    count * wins
+                }.reduce { acc, w -> acc + w }
                 cache[state] = calculated
                 return calculated
             }
