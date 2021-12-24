@@ -2,7 +2,7 @@ internal sealed class Token
 internal object Open : Token()
 internal object Comma : Token()
 internal object Close : Token()
-internal class Value(val v: Int) : Token()
+private class Value(val v: Int) : Token()
 
 fun main() {
 

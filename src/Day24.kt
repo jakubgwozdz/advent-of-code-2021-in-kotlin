@@ -5,114 +5,231 @@ import java.time.temporal.ChronoUnit
 @Suppress("EnumEntryName")
 private enum class Variable { w, x, y, z }
 
-fun main() {
-    fun part1(program: List<String>): Long {
-        class Input(number: Long) {
-            private val i: List<Int> = number.toString().map { it.digitToInt() }
-            private var pos: Int = 0
-            fun poll(): Long = i[pos++].toLong()
-        }
+private fun String.toV() = Variable.valueOf(this)
 
-        class ALU() {
-            var w = 0L
-            var x = 0L
-            var y = 0L
-            var z = 0L
-            operator fun set(v: Variable, l: Long) = when (v) {
-                Variable.w -> w = l
-                Variable.x -> x = l
-                Variable.y -> y = l
-                Variable.z -> z = l
-            }
+private fun interface Input {
+    fun poll(): Long
+}
 
-            operator fun get(v: Variable) = when (v) {
-                Variable.w -> w
-                Variable.x -> x
-                Variable.y -> y
-                Variable.z -> z
-            }
-        }
+private data class Input1(val number: List<Int>) : Input {
+    var pos: Int = 0
+    override fun poll(): Long = number[pos++].toLong()
+}
+
+private data class ALU(
+    var w: Long = 0L,
+    var x: Long = 0L,
+    var y: Long = 0L,
+    var z: Long = 0L,
+) {
+
+    operator fun set(v: Variable, l: Long) = when (v) {
+        Variable.w -> w = l
+        Variable.x -> x = l
+        Variable.y -> y = l
+        Variable.z -> z = l
+    }
+
+    operator fun get(v: Variable) = when (v) {
+        Variable.w -> w
+        Variable.x -> x
+        Variable.y -> y
+        Variable.z -> z
+    }
+
+    override fun toString(): String = "w=$w, x=$x, y=$y, z=$z"
+
+}
 
 
-        fun inp(v: Variable, alu: ALU, input: Input) {
+private sealed class Op {
+    abstract fun invoke(alu: ALU, input: Input)
+
+    class Inp(val v: Variable) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
             alu[v] = input.poll()
         }
+    }
 
-        fun add(v: Variable, value: Long, alu: ALU) {
-            alu[v] = alu[v] + value
+    class Add(val v: Variable, val o: Long) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            alu[v] = alu[v] + o
         }
+    }
 
-        fun add(v: Variable, value: Variable, alu: ALU) = add(v, alu[value], alu)
-
-        fun mul(v: Variable, value: Long, alu: ALU) {
-            alu[v] = alu[v] * value
+    class AddR(val v: Variable, val o: Variable) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            alu[v] = alu[v] + alu[o]
         }
+    }
 
-        fun mul(v: Variable, value: Variable, alu: ALU) = mul(v, alu[value], alu)
-
-        fun div(v: Variable, value: Long, alu: ALU) {
-            check(value != 0L)
-            alu[v] = alu[v] / value
+    class Mul(val v: Variable, val o: Long) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            alu[v] = alu[v] * o
         }
+    }
 
-        fun div(v: Variable, value: Variable, alu: ALU) = div(v, alu[value], alu)
-
-        fun mod(v: Variable, value: Long, alu: ALU) {
-            check(alu[v] >= 0L)
-            check(value > 0L)
-            alu[v] = alu[v] % value
+    class MulR(val v: Variable, val o: Variable) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            alu[v] = alu[v] * alu[o]
         }
+    }
 
-        fun mod(v: Variable, value: Variable, alu: ALU) = mod(v, alu[value], alu)
-
-        fun eql(v: Variable, value: Long, alu: ALU) {
-            alu[v] = if (alu[v] == value) 1 else 0
-        }
-
-        fun eql(v: Variable, value: Variable, alu: ALU) = eql(v, alu[value], alu)
-
-        fun String.toV() = Variable.valueOf(this)
-        val ops = program.map { l ->
-            val op = l.split(" ")
-            val v = op[1].toV()
-            when (op[0]) {
-                "inp" -> { alu: ALU, input: Input -> inp(v, alu, input) }
-                "add" -> if (op[2] in "wxyz") { alu: ALU, _: Input -> add(v, op[2].toV(), alu) }
-                else { alu: ALU, _: Input -> add(v, op[2].toLong(), alu) }
-                "mul" -> if (op[2] in "wxyz") { alu: ALU, _: Input -> mul(v, op[2].toV(), alu) }
-                else { alu: ALU, _: Input -> mul(v, op[2].toLong(), alu) }
-                "div" -> if (op[2] in "wxyz") { alu: ALU, _: Input -> div(v, op[2].toV(), alu) }
-                else { alu: ALU, _: Input -> div(v, op[2].toLong(), alu) }
-                "mod" -> if (op[2] in "wxyz") { alu: ALU, _: Input -> mod(v, op[2].toV(), alu) }
-                else { alu: ALU, _: Input -> mod(v, op[2].toLong(), alu) }
-                "eql" -> if (op[2] in "wxyz") { alu: ALU, _: Input -> eql(v, op[2].toV(), alu) }
-                else { alu: ALU, _: Input -> eql(v, op[2].toLong(), alu) }
-                else -> error(l)
+    class Div(val v: Variable, val o: Long) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            if (o == 0L) {
+                throw IllegalStateException("div by 0")
             }
+            alu[v] = alu[v] / o
         }
+    }
+
+    class DivR(val v: Variable, val o: Variable) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            if (alu[o] == 0L) {
+                throw IllegalStateException("div by 0")
+            }
+            alu[v] = alu[v] / alu[o]
+        }
+    }
+
+    class Mod(val v: Variable, val o: Long) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            if (alu[v] < 0L) {
+                throw IllegalStateException("mod of < 0")
+            }
+            if (o <= 0L) {
+                throw IllegalStateException("mod by <= 0")
+            }
+            alu[v] = alu[v] % o
+        }
+    }
+
+    class ModR(val v: Variable, val o: Variable) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            if (alu[v] < 0L) {
+                throw IllegalStateException("mod of < 0")
+            }
+            if (alu[o] <= 0L) {
+                throw IllegalStateException("mod by <= 0")
+            }
+            alu[v] = alu[v] % alu[o]
+        }
+    }
+
+    class Eql(val v: Variable, val o: Long) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            alu[v] = if (alu[v] == o) 1 else 0
+        }
+    }
+
+    class EqlR(val v: Variable, val o: Variable) : Op() {
+        override fun invoke(alu: ALU, input: Input) {
+            alu[v] = if (alu[v] == alu[o]) 1 else 0
+        }
+    }
+}
+
+fun main() {
+
+    fun parse(program: List<String>): List<Op> = program.map { l ->
+        val op = l.split(" ")
+        val v = op[1].toV()
+        when (op[0]) {
+            "inp" -> Op.Inp(v)
+            "add" -> if (op[2] in "wxyz") Op.AddR(v, op[2].toV()) else Op.Add(v, op[2].toLong())
+            "mul" -> if (op[2] in "wxyz") Op.MulR(v, op[2].toV()) else Op.Mul(v, op[2].toLong())
+            "div" -> if (op[2] in "wxyz") Op.DivR(v, op[2].toV()) else Op.Div(v, op[2].toLong())
+            "mod" -> if (op[2] in "wxyz") Op.ModR(v, op[2].toV()) else Op.Mod(v, op[2].toLong())
+            "eql" -> if (op[2] in "wxyz") Op.EqlR(v, op[2].toV()) else Op.Eql(v, op[2].toLong())
+            else -> error(l)
+        }
+    }
+
+    val cache = mutableMapOf<String, Pair<ALU, Input>>()
+
+    fun List<Op>.runOn(alu: ALU, input: Input) {
+        forEach { it.invoke(alu, input) }
+    }
+
+    fun part1(program: List<String>): Long {
+
+        val ops = parse(program)
 
         var lastReport = Instant.ofEpochMilli(0)
 
-        return (99999999999999 downTo 11111111111111)
-            .asSequence()
-            .filter { '0' !in it.toString() }
-            .onEach { number ->
-                val now = Instant.now()
-                if (lastReport.isBefore(now - Duration.of(10, ChronoUnit.SECONDS))) {
-                    logWithTime("@ $number")
-                    lastReport = now
+        fun List<Op>.solve(alu: ALU, soFar: List<Int> = emptyList()): Int? {
+
+            return (9 downTo 1).firstOrNull {
+                val now = soFar + it
+                val copy = alu.copy()
+
+                this[0].invoke(copy) { it.toLong() }
+                val toGo = this.drop(1).takeWhile { it !is Op.Inp }
+                val rest = this.subList(1 + toGo.size, this.size)
+                toGo.runOn(copy) { error("noop") }
+
+                if (rest.isNotEmpty()) rest.solve(copy, now) else {
+                    val n = Instant.now()
+                    if (lastReport.isBefore(n - Duration.of(10, ChronoUnit.SECONDS))) {
+                        logWithTime("@$now -> $copy}")
+                        lastReport = n
+                    }
+
                 }
-            }
-            .first { number ->
-                val input = Input(number)
-                try {
-                    val alu = ALU()
-                    ops.forEach { it(alu, input) }
-                    alu.z == 0L
-                } catch (e: Exception) {
-                    false
+
+                (copy.z == 0L).also { result ->
+                    if (result) {
+                        println(soFar)
+                    }
                 }
+
             }
+        }
+        ops.solve(ALU())
+
+//
+//        var next = "88888888888888".toLong(9)
+//
+//        while (next >= 0) {
+//            val number = next.toString(9).fold(0L) { acc, c -> acc * 10 + c.digitToInt() + 1 }
+//
+//            val alu = ALU()
+//
+//            val input = Input1(number.toString().map { it.digitToInt() })
+//            try {
+//                ops.forEach { it.invoke(alu, input) }
+//                if (alu.z == 0L) return number
+//            } catch (e: Exception) {
+//                logWithTime("error @ ${input.pos}")
+//            }
+//
+//            val now = Instant.now()
+//            if (lastReport.isBefore(now - Duration.of(10, ChronoUnit.SECONDS))) {
+//                logWithTime("@$next(9) -> $number(10) -> $alu}")
+//                lastReport = now
+//            }
+//
+//            next--
+//        }
+//        error("not found")
+
+//        return (99999999999999 downTo 11111111111111)
+//            .asSequence()
+//            .filter { '0' !in it.toString() }
+//            .onEach { number ->
+//            }
+//            .first { number ->
+//                val input = Input(number)
+//                try {
+//                    val alu = ALU()
+//                    ops.forEach { it(alu, input) }
+//                    alu.z == 0L
+//                } catch (e: Exception) {
+//                    false
+//                }
+//            }
+        TODO()
     }
 
     fun part2(input: List<String>): Int {
@@ -122,7 +239,13 @@ fun main() {
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day24_test")
     val input = readInput("Day24")
-//    expect(0) { part1(testInput).also { logWithTime(it) } }
+
+    expect("0101") {
+        val alu = ALU()
+        parse(testInput).runOn(alu) { 5 }
+        "${alu.w}${alu.x}${alu.y}${alu.z}"
+            .also { logWithTime(it) }
+    }
     logWithTime(part1(input))
     expect(0) { part2(testInput).also { logWithTime(it) } }
     logWithTime(part2(input))
