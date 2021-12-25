@@ -169,6 +169,8 @@ fun main() {
                 val rest = this.subList(1 + toGo.size, this.size)
                 toGo.runOn(copy) { error("noop") }
 
+                logWithTime("$now -> $copy")
+
                 if (rest.isNotEmpty()) rest.solve(copy, now) else {
                     val n = Instant.now()
                     if (lastReport.isBefore(n - Duration.of(10, ChronoUnit.SECONDS))) {
@@ -186,49 +188,37 @@ fun main() {
 
             }
         }
-        ops.solve(ALU())
+//        ops.solve(ALU())
 
-//
-//        var next = "88888888888888".toLong(9)
-//
-//        while (next >= 0) {
-//            val number = next.toString(9).fold(0L) { acc, c -> acc * 10 + c.digitToInt() + 1 }
-//
-//            val alu = ALU()
-//
-//            val input = Input1(number.toString().map { it.digitToInt() })
-//            try {
-//                ops.forEach { it.invoke(alu, input) }
-//                if (alu.z == 0L) return number
-//            } catch (e: Exception) {
-//                logWithTime("error @ ${input.pos}")
-//            }
-//
-//            val now = Instant.now()
-//            if (lastReport.isBefore(now - Duration.of(10, ChronoUnit.SECONDS))) {
-//                logWithTime("@$next(9) -> $number(10) -> $alu}")
-//                lastReport = now
-//            }
-//
-//            next--
-//        }
-//        error("not found")
+        val chunked = ops.chunked(18)
 
-//        return (99999999999999 downTo 11111111111111)
-//            .asSequence()
-//            .filter { '0' !in it.toString() }
-//            .onEach { number ->
-//            }
-//            .first { number ->
-//                val input = Input(number)
-//                try {
-//                    val alu = ALU()
-//                    ops.forEach { it(alu, input) }
-//                    alu.z == 0L
-//                } catch (e: Exception) {
-//                    false
-//                }
-//            }
+//        val cache = Cache<List<Int>, Long>()
+//        BFSPathfinder(
+//            adderOp = { (l:List<Int>,Long), Int -> }
+//        )
+
+//119474
+        (0..13).forEach { digit->
+            (1..9).forEach { v->
+                val alu =ALU()
+                (0..13).forEach { d->
+                    val n = if( d==digit) v else 1
+                    print(n)
+                    chunked[d].runOn(alu) {n.toLong()}
+                }
+                println(" ${alu.z}")
+            }
+
+        }
+
+        // x= z%26 != w-dx
+        // z /= dz
+        // if (x) z *= 25
+        // if (x) z += w * dy
+
+
+        // 0 = z - w*dy
+
         TODO()
     }
 
