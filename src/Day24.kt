@@ -1,7 +1,3 @@
-import java.time.Duration
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-
 @Suppress("EnumEntryName")
 private enum class Variable { w, x, y, z }
 
@@ -146,7 +142,6 @@ fun main() {
         }
     }
 
-    val cache = mutableMapOf<String, Pair<ALU, Input>>()
 
     fun List<Op>.runOn(alu: ALU, input: Input) {
         forEach { it.invoke(alu, input) }
@@ -156,74 +151,70 @@ fun main() {
 
         val ops = parse(program)
 
-        var lastReport = Instant.ofEpochMilli(0)
+        val chunked = ops.chunked(18)
 
-        fun List<Op>.solve(alu: ALU, soFar: List<Int> = emptyList()): Int? {
+        val stack = Stack<Pair<Int,Long>>()
+        val result = LongArray(14)
 
-            return (9 downTo 1).firstOrNull {
-                val now = soFar + it
-                val copy = alu.copy()
+        chunked.map { chunk ->
+            val p1 = (chunk[4] as Op.Div).o
+            val p2 = (chunk[5] as Op.Add).o
+            val p3 = (chunk[15] as Op.Add).o
+            Triple(p1,p2,p3)
+        }.forEachIndexed { i,(p1,p2,p3) ->
+            if (p1==1L) stack.offer(i to p3)
+            else {
+                val (iPush,p3Push)=stack.poll()
 
-                this[0].invoke(copy) { it.toLong() }
-                val toGo = this.drop(1).takeWhile { it !is Op.Inp }
-                val rest = this.subList(1 + toGo.size, this.size)
-                toGo.runOn(copy) { error("noop") }
-
-                logWithTime("$now -> $copy")
-
-                if (rest.isNotEmpty()) rest.solve(copy, now) else {
-                    val n = Instant.now()
-                    if (lastReport.isBefore(n - Duration.of(10, ChronoUnit.SECONDS))) {
-                        logWithTime("@$now -> $copy}")
-                        lastReport = n
-                    }
-
+                println("Input[$i] == Input[$iPush] + ${p3Push + p2}")
+                (9 downTo 1).first{ it +p3Push + p2 <10 }.let {
+                    result[iPush] = it.toLong()
+                    result[i] = it + p3Push + p2
                 }
-
-                (copy.z == 0L).also { result ->
-                    if (result) {
-                        println(soFar)
-                    }
-                }
-
             }
         }
-//        ops.solve(ALU())
+
+        val alu = ALU()
+        chunked.forEachIndexed { index, l-> l.runOn(alu) {result[index]} }
+        println(alu)
+
+        return result.joinToString("").toLong()
+
+    }
+
+    fun part2(program: List<String>): Long {
+
+        val ops = parse(program)
 
         val chunked = ops.chunked(18)
 
-//        val cache = Cache<List<Int>, Long>()
-//        BFSPathfinder(
-//            adderOp = { (l:List<Int>,Long), Int -> }
-//        )
+        val stack = Stack<Pair<Int,Long>>()
+        val result = LongArray(14)
 
-//119474
-        (0..13).forEach { digit->
-            (1..9).forEach { v->
-                val alu =ALU()
-                (0..13).forEach { d->
-                    val n = if( d==digit) v else 1
-                    print(n)
-                    chunked[d].runOn(alu) {n.toLong()}
+        chunked.map { chunk ->
+            val p1 = (chunk[4] as Op.Div).o
+            val p2 = (chunk[5] as Op.Add).o
+            val p3 = (chunk[15] as Op.Add).o
+            Triple(p1,p2,p3)
+        }.forEachIndexed { i,(p1,p2,p3) ->
+            if (p1==1L) stack.offer(i to p3)
+            else {
+                val (iPush,p3Push)=stack.poll()
+
+                println("Input[$i] == Input[$iPush] + ${p3Push + p2}")
+                (1 .. 9).first{ it +p3Push + p2 >0 }.let {
+                    result[iPush] = it.toLong()
+                    result[i] = it + p3Push + p2
                 }
-                println(" ${alu.z}")
             }
-
         }
 
-        // x= z%26 != w-dx
-        // z /= dz
-        // if (x) z *= 25
-        // if (x) z += w * dy
+        val alu = ALU()
+        chunked.forEachIndexed { index, l-> l.runOn(alu) {result[index]} }
+        println(alu)
 
+        return result.joinToString("").toLong()
 
-        // 0 = z - w*dy
-
-        TODO()
-    }
-
-    fun part2(input: List<String>): Int {
-        TODO()
     }
 
     // test if implementation meets criteria from the description, like:
@@ -237,6 +228,5 @@ fun main() {
             .also { logWithTime(it) }
     }
     logWithTime(part1(input))
-    expect(0) { part2(testInput).also { logWithTime(it) } }
     logWithTime(part2(input))
 }

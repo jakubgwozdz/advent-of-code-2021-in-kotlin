@@ -40,12 +40,37 @@ fun <T> logWithTime(msg: T, op: T.() -> String = { "$this" }) {
     println("${t.toString().take(12).padEnd(12)}: ${msg.op()}")
 }
 
-operator fun<T1,T2> Iterable<T1>.times(other:Iterable<T2>) = flatMap { a -> other.map { b -> a to b } }
-operator fun<T1,T2> Iterable<T1>.times(other:Sequence<T2>) = flatMap { a -> other.map { b -> a to b } }
+operator fun <T1, T2> Iterable<T1>.times(other: Iterable<T2>) =
+    flatMap { a -> other.map { b -> a to b } }
 
-operator fun<T1,T2> Sequence<T1>.times(other:Iterable<T2>) = flatMap { a -> other.asSequence().map { b -> a to b } }
-operator fun<T1,T2> Sequence<T1>.times(other:Sequence<T2>) = flatMap { a -> other.map { b -> a to b } }
+operator fun <T1, T2> Iterable<T1>.times(other: Sequence<T2>) =
+    flatMap { a -> other.map { b -> a to b } }
 
+operator fun <T1, T2> Sequence<T1>.times(other: Iterable<T2>) =
+    flatMap { a -> other.asSequence().map { b -> a to b } }
+
+operator fun <T1, T2> Sequence<T1>.times(other: Sequence<T2>) =
+    flatMap { a -> other.map { b -> a to b } }
+
+
+open class Stack<E : Any> {
+
+    protected var stack = mutableListOf<E>()
+
+    val size get() = stack.size
+
+    fun isNotEmpty(): Boolean = size > 0
+
+    fun poll(): E {
+        check(size > 0)
+        return stack.removeAt(stack.lastIndex)
+    }
+
+    open fun offer(e: E) {
+        stack.add(e)
+    }
+
+}
 
 open class Queue<E : Any> {
 
@@ -161,7 +186,9 @@ class BasicPathfinder<T : Any, I : Comparable<I>>(
 //    fun findShortest(start: T, end: T): List<T>? = findShortest(listOf(start)) { t -> t.last() == end }
 }
 
-class Cache<R : Any, I : Comparable<I>> {
+class Cache<R : Any, I : Comparable<I>>(
+    val loggingOp: (state: R, prev: I?, better: I) -> Unit = { _, _, _ -> },
+) {
     private val cache = mutableMapOf<R, I>()
     fun isBetterThanPrevious(state: R, distance: I): Boolean {
         val previous = cache[state]
@@ -170,6 +197,7 @@ class Cache<R : Any, I : Comparable<I>> {
                 false
             }
             else -> {
+                loggingOp(state, previous, distance)
                 cache[state] = distance
                 true
             }
