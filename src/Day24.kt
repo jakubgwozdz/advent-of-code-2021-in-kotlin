@@ -7,11 +7,6 @@ private fun interface Input {
     fun poll(): Long
 }
 
-private data class Input1(val number: List<Int>) : Input {
-    var pos: Int = 0
-    override fun poll(): Long = number[pos++].toLong()
-}
-
 private data class ALU(
     var w: Long = 0L,
     var x: Long = 0L,
@@ -45,84 +40,88 @@ private sealed class Op {
         override fun invoke(alu: ALU, input: Input) {
             alu[v] = input.poll()
         }
+
+        override fun toString() = "$v = input.poll()"
     }
 
     class Add(val v: Variable, val o: Long) : Op() {
         override fun invoke(alu: ALU, input: Input) {
             alu[v] = alu[v] + o
         }
+
+        override fun toString() = "$v = $v + ${o}L"
     }
 
     class AddR(val v: Variable, val o: Variable) : Op() {
         override fun invoke(alu: ALU, input: Input) {
             alu[v] = alu[v] + alu[o]
         }
+
+        override fun toString() = "$v = $v + $o"
     }
 
     class Mul(val v: Variable, val o: Long) : Op() {
         override fun invoke(alu: ALU, input: Input) {
             alu[v] = alu[v] * o
         }
+
+        override fun toString() = "$v = $v * ${o}L"
     }
 
     class MulR(val v: Variable, val o: Variable) : Op() {
         override fun invoke(alu: ALU, input: Input) {
             alu[v] = alu[v] * alu[o]
         }
+
+        override fun toString() = "$v = $v * $o"
     }
 
     class Div(val v: Variable, val o: Long) : Op() {
         override fun invoke(alu: ALU, input: Input) {
-            if (o == 0L) {
-                throw IllegalStateException("div by 0")
-            }
             alu[v] = alu[v] / o
         }
+
+        override fun toString() = "$v = $v / ${o}L"
     }
 
     class DivR(val v: Variable, val o: Variable) : Op() {
         override fun invoke(alu: ALU, input: Input) {
-            if (alu[o] == 0L) {
-                throw IllegalStateException("div by 0")
-            }
             alu[v] = alu[v] / alu[o]
         }
+
+        override fun toString() = "$v = $v / $o"
     }
 
     class Mod(val v: Variable, val o: Long) : Op() {
         override fun invoke(alu: ALU, input: Input) {
-            if (alu[v] < 0L) {
-                throw IllegalStateException("mod of < 0")
-            }
-            if (o <= 0L) {
-                throw IllegalStateException("mod by <= 0")
-            }
             alu[v] = alu[v] % o
         }
+
+        override fun toString() = "$v = $v % ${o}L"
     }
 
     class ModR(val v: Variable, val o: Variable) : Op() {
         override fun invoke(alu: ALU, input: Input) {
-            if (alu[v] < 0L) {
-                throw IllegalStateException("mod of < 0")
-            }
-            if (alu[o] <= 0L) {
-                throw IllegalStateException("mod by <= 0")
-            }
             alu[v] = alu[v] % alu[o]
         }
+
+        override fun toString() = "$v = $v % $o"
     }
 
     class Eql(val v: Variable, val o: Long) : Op() {
         override fun invoke(alu: ALU, input: Input) {
             alu[v] = if (alu[v] == o) 1 else 0
         }
+
+        override fun toString() = "$v = if ($v == ${o}L) 1L else 0L"
     }
 
     class EqlR(val v: Variable, val o: Variable) : Op() {
         override fun invoke(alu: ALU, input: Input) {
             alu[v] = if (alu[v] == alu[o]) 1 else 0
         }
+
+        override fun toString() = "$v = if ($v == $o) 1L else 0L"
     }
 }
 
@@ -147,86 +146,70 @@ fun main() {
         forEach { it.invoke(alu, input) }
     }
 
-    fun part1(program: List<String>): Long {
+    fun inKotlin(prev: Long, p1: Boolean, p2: Long, p3: Long, input: Input): Long {
+        val w = input.poll()
+        var z = prev
 
+        if (p1) z /= 26L // pop
+        if (prev % 26L + p2 != w) z = z * 26L + w + p3 // push
+
+        return z
+    }
+
+    fun solve(
+        program: List<String>,
+        progression: IntProgression
+    ): Long {
         val ops = parse(program)
 
         val chunked = ops.chunked(18)
 
-        val stack = Stack<Pair<Int,Long>>()
+        chunked[0].forEach { println(it) }
+
+        // pushing always input + p3
+        // to get 0, can't push after pop -> input == last pushed + p2  -> current input == last input + last p3 + current p2
+
+        val stack = Stack<Pair<Int, Long>>()
         val result = LongArray(14)
 
-        chunked.map { chunk ->
+        val interesting = chunked.map { chunk ->
             val p1 = (chunk[4] as Op.Div).o
             val p2 = (chunk[5] as Op.Add).o
             val p3 = (chunk[15] as Op.Add).o
-            Triple(p1,p2,p3)
-        }.forEachIndexed { i,(p1,p2,p3) ->
-            if (p1==1L) stack.offer(i to p3)
-            else {
-                val (iPush,p3Push)=stack.poll()
+            Triple(p1 == 26L, p2, p3)
+        }.onEachIndexed { i, t ->
+            println("$i: $t")
+        }
 
-                println("Input[$i] == Input[$iPush] + ${p3Push + p2}")
-                (9 downTo 1).first{ it +p3Push + p2 <10 }.let {
+        interesting.forEachIndexed { i, (p1, p2, p3) ->
+            if (!p1) stack.offer(i to p3)
+            else {
+                val (iPush, lastP3) = stack.poll()
+                println("Input[$i] == Input[$iPush] + $lastP3 + $p2")
+                progression.first { it + lastP3 + p2 in 1..9 }.let {
                     result[iPush] = it.toLong()
-                    result[i] = it + p3Push + p2
+                    result[i] = it + lastP3 + p2
                 }
             }
         }
 
-        val alu = ALU()
-        chunked.forEachIndexed { index, l-> l.runOn(alu) {result[index]} }
-        println(alu)
-
-        return result.joinToString("").toLong()
-
-    }
-
-    fun part2(program: List<String>): Long {
-
-        val ops = parse(program)
-
-        val chunked = ops.chunked(18)
-
-        val stack = Stack<Pair<Int,Long>>()
-        val result = LongArray(14)
-
-        chunked.map { chunk ->
-            val p1 = (chunk[4] as Op.Div).o
-            val p2 = (chunk[5] as Op.Add).o
-            val p3 = (chunk[15] as Op.Add).o
-            Triple(p1,p2,p3)
-        }.forEachIndexed { i,(p1,p2,p3) ->
-            if (p1==1L) stack.offer(i to p3)
-            else {
-                val (iPush,p3Push)=stack.poll()
-
-                println("Input[$i] == Input[$iPush] + ${p3Push + p2}")
-                (1 .. 9).first{ it +p3Push + p2 >0 }.let {
-                    result[iPush] = it.toLong()
-                    result[i] = it + p3Push + p2
-                }
+        interesting.foldIndexed(0L) { index, prev, (p1, p2, p3) ->
+            inKotlin(prev, p1, p2, p3) { result[index] }.also {
+                println("$index: $prev (${if (p1) "pop" else "push"}, $p2, $p3) {${result[index]}} -> $it : " +
+                        it.toString(26).map { 'A' + it.digitToInt(26) }.joinToString("")
+                )
             }
         }
-
-        val alu = ALU()
-        chunked.forEachIndexed { index, l-> l.runOn(alu) {result[index]} }
-        println(alu)
-
         return result.joinToString("").toLong()
-
     }
+
+    fun part1(program: List<String>) = solve(program, 9 downTo 1)
+
+    fun part2(program: List<String>) = solve(program, 1..9)
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day24_test")
     val input = readInput("Day24")
-
-    expect("0101") {
-        val alu = ALU()
-        parse(testInput).runOn(alu) { 5 }
-        "${alu.w}${alu.x}${alu.y}${alu.z}"
-            .also { logWithTime(it) }
-    }
     logWithTime(part1(input))
     logWithTime(part2(input))
 }
